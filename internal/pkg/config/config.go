@@ -86,6 +86,11 @@ type Kubernetes struct {
 	PollTimeout time.Duration
 }
 
+type Plugin struct {
+	Address string            // "unix:///path" or "host:port"
+	Options map[string]string // passed to the plugin as backend_options
+}
+
 // Server configures connections to Forgejo and their behaviour.
 type Server struct {
 	Connections map[string]*Connection // Connections defines which Forgejo instance(s) Forgejo Runner should connect to. The map's key serves as connection name.
@@ -125,7 +130,8 @@ type Config struct {
 	Container  Container // Container represents the configuration for the container.
 	Host       Host      // Host represents the configuration for the host.
 	Kubernetes Kubernetes
-	Server     Server // Server configures connections to Forgejo and their behaviour.
+	Plugins    map[string]Plugin // Plugin name → plugin configuration. Keyed by the plugin label scheme.
+	Server     Server            // Server configures connections to Forgejo and their behaviour.
 }
 
 // serializedConfiguration is the top-level structure of the on-disk format of the Forgejo Runner configuration.
@@ -135,8 +141,9 @@ type serializedConfiguration struct {
 	Cache      serializedCacheSettings      `yaml:"cache"`     // Cache represents the configuration for caching.
 	Container  serializedContainerSettings  `yaml:"container"` // Container represents the configuration for the container.
 	Host       serializedHostSettings       `yaml:"host"`      // Host represents the configuration for the host.
-	Kubernetes serializedKubernetesSettings `yaml:"kubernetes"`
-	Server     serializedServerSettings     `yaml:"server"` // Server configures connections to Forgejo and their behaviour.
+	Kubernetes serializedKubernetesSettings          `yaml:"kubernetes"`
+	Plugins    map[string]serializedPluginSettings `yaml:"plugins"`
+	Server     serializedServerSettings            `yaml:"server"` // Server configures connections to Forgejo and their behaviour.
 }
 
 func (s *serializedConfiguration) applyTo(config *Config) error {
@@ -157,6 +164,15 @@ func (s *serializedConfiguration) applyTo(config *Config) error {
 	}
 	if err := s.Kubernetes.applyTo(config); err != nil {
 		return fmt.Errorf("invalid `kubernetes` settings: %w", err)
+	}
+	if len(s.Plugins) > 0 {
+		config.Plugins = make(map[string]Plugin, len(s.Plugins))
+		for name, sp := range s.Plugins {
+			if sp.Address == "" {
+				return fmt.Errorf("invalid `plugins.%s` settings: address is required", name)
+			}
+			config.Plugins[name] = Plugin(sp)
+		}
 	}
 	if err := s.Server.applyTo(config); err != nil {
 		return fmt.Errorf("invalid `server` settings: %w", err)
@@ -420,6 +436,11 @@ func (s *serializedHostSettings) applyTo(config *Config) error {
 	}
 
 	return nil
+}
+
+type serializedPluginSettings struct {
+	Address string            `yaml:"address"`
+	Options map[string]string `yaml:"options"`
 }
 
 type serializedKubernetesSettings struct {

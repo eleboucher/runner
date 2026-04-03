@@ -151,7 +151,7 @@ func newJobExecutor(info jobInfo, sf stepFactory, rc *RunContext) common.Executo
 			logger.Errorf("Error while stop job container %s: %v", rc.jobContainerName(), err)
 		}
 
-		if !rc.IsHostEnv(ctx) && !rc.IsK8sEnv(ctx) && rc.getNetworkCreated(ctx) {
+		if rc.JobContainer != nil && !rc.JobContainer.ManagesOwnNetworking() && rc.getNetworkCreated(ctx) {
 			networkName := rc.getNetworkName(ctx)
 			logger.Debugf("Cleaning up network %s for job %s", networkName, rc.jobContainerName())
 			if err := container.NewDockerNetworkRemoveExecutor(networkName)(ctx); err != nil {

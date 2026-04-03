@@ -60,8 +60,8 @@ func (sd *stepDocker) runUsesContainer() common.Executor {
 	step := sd.Step
 
 	return func(ctx context.Context) error {
-		if rc.IsK8sEnv(ctx) {
-			return fmt.Errorf("docker:// step actions are not supported in Kubernetes mode")
+		if !rc.JobContainer.SupportsDockerActions() {
+			return fmt.Errorf("docker:// step actions are not supported in %s mode", rc.JobContainer.BackendName())
 		}
 
 		image := strings.TrimPrefix(step.Uses, "docker://")

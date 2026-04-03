@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package plugin.v1;
+
+option go_package = "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1;pluginv1";
+
+// BackendPlugin is the gRPC service that a plugin server must implement.
+// The runner acts as a client, connecting to an already-running plugin server.
+// The plugin server is responsible for managing concurrent environments.
+service BackendPlugin {
+  // Ping verifies the plugin server is alive.
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  // Capabilities returns the backend's name, filesystem layout, and feature flags.
+  rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);
+
+  // Create provisions a new execution environment.
+  // Image pulling is folded in; service containers are passed here.
+  rpc Create(CreateRequest) returns (CreateResponse);
+
+  // Start boots a previously created environment.
+  rpc Start(StartRequest) returns (StartResponse);
+
+  // Exec runs a command inside the environment, streaming stdout/stderr back.
+  rpc Exec(ExecRequest) returns (stream ExecOutput);
+
+  // CopyIn transfers a tar archive into the environment.
+  rpc CopyIn(stream CopyInChunk) returns (CopyInResponse);
+
+  // CopyLocal copies a path from a volume shared with the runner into the environment.
+  rpc CopyLocal(CopyLocalRequest) returns (CopyLocalResponse);
+
+  // CopyOut transfers a tar archive out of the environment.
+  rpc CopyOut(CopyOutRequest) returns (stream CopyOutChunk);
+
+  // UpdateEnv reads an env file inside the environment and returns parsed variables.
+  rpc UpdateEnv(UpdateEnvRequest) returns (UpdateEnvResponse);
+
+  // IsHealthy checks whether the environment is still running.
+  rpc IsHealthy(IsHealthyRequest) returns (IsHealthyResponse);
+
+  // Remove tears down the environment and releases all resources.
+  rpc Remove(RemoveRequest) returns (RemoveResponse);
+}
+
+
+message PingRequest {}
+message PingResponse {}
+
+
+message CapabilitiesRequest {}
+
+message CapabilitiesResponse {
+  string name = 1;
+  string root_path = 2;
+  string act_path = 3;
+  string tool_cache_path = 4;
+  string path_variable_name = 5;
+  string default_path_variable = 6;
+  string path_separator = 7;
+  bool supports_docker_actions = 8;
+  bool manages_own_networking = 9;
+  bool supports_service_containers = 10;
+  bool environment_case_insensitive = 11;
+  map<string, string> runner_context = 12;
+  bool supports_local_copy = 13;
+}
+
+
+message ServiceContainer {
+  string name = 1;
+  string image = 2;
+  map<string, string> env = 3;
+  repeated string ports = 4;
+}
+
+message CreateRequest {
+  string image = 1;
+  string name = 2;
+  repeated string env = 3;
+  string working_dir = 4;
+  repeated string cap_add = 5;
+  repeated string cap_drop = 6;
+  repeated ServiceContainer services = 7;
+  map<string, string> backend_options = 8;
+}
+
+message CreateResponse {
+  string environment_id = 1;
+}
+
+
+message StartRequest {
+  string environment_id = 1;
+}
+
+message StartResponse {}
+
+
+message ExecRequest {
+  string environment_id = 1;
+  repeated string command = 2;
+  map<string, string> env = 3;
+  string user = 4;
+  string workdir = 5;
+}
+
+message ExecOutput {
+  enum Stream {
+    STDOUT = 0;
+    STDERR = 1;
+  }
+  Stream stream = 1;
+  bytes data = 2;
+  int32 exit_code = 3;
+  bool done = 4;
+  string error_message = 5;
+}
+
+
+message CopyInChunk {
+  string environment_id = 1;
+  string dest_path = 2;
+  bytes data = 3;
+}
+
+message CopyInResponse {}
+
+message CopyLocalRequest {
+  string environment_id = 1;
+  string src_path = 2;
+  string dest_path = 3;
+}
+
+message CopyLocalResponse {}
+
+
+message CopyOutRequest {
+  string environment_id = 1;
+  string src_path = 2;
+}
+
+message CopyOutChunk {
+  bytes data = 1;
+}
+
+
+message UpdateEnvRequest {
+  string environment_id = 1;
+  string src_path = 2;
+  map<string, string> current_env = 3;
+}
+
+message UpdateEnvResponse {
+  map<string, string> updated_env = 1;
+}
+
+
+message IsHealthyRequest {
+  string environment_id = 1;
+}
+
+message IsHealthyResponse {
+  int64 wait_nanos = 1;
+}
+
+
+message RemoveRequest {
+  string environment_id = 1;
+}
+
+message RemoveResponse {}

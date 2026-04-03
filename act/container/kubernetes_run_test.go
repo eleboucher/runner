@@ -21,7 +21,7 @@ import (
 // Compile-time interface check.
 var (
 	_ ExecutionsEnvironment = &K8sPod{}
-	_ K8sServiceAdder       = &K8sPod{}
+	_ ServiceAdder       = &K8sPod{}
 )
 
 func newTestK8sPod(t *testing.T, fakeClient *fake.Clientset) *K8sPod {
@@ -418,8 +418,7 @@ func TestK8sPod_ReplaceLogWriter(t *testing.T) {
 func TestK8sPod_InterfaceMethods(t *testing.T) {
 	p := &K8sPod{}
 
-	assert.True(t, p.GetK8s())
-	assert.False(t, p.GetLXC())
+	assert.Equal(t, "k8spod", p.BackendName())
 	assert.Equal(t, k8sActPath, p.GetActPath())
 	assert.Equal(t, k8sSharedMount, p.GetRoot())
 	assert.Equal(t, "k8spod", p.GetName())

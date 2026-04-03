@@ -389,6 +389,7 @@ func (r *Runner) run(ctx context.Context, task *runnerv1.Task, reporter *report.
 		KubeConfig:            r.cfg.Kubernetes.KubeConfig,
 		KubernetesPollTimeout: r.cfg.Kubernetes.PollTimeout,
 		KubernetesPodSpecs:    r.buildK8sPodSpecs(),
+		Plugins:               r.buildPluginConfigs(),
 	}
 
 	if r.cfg.Log.JobLevel != "" {
@@ -439,4 +440,19 @@ func (r *Runner) buildK8sPodSpecs() map[string]string {
 		}
 	}
 	return specs
+}
+
+// buildPluginConfigs converts internal config.Plugin map to runner.PluginConfig map.
+func (r *Runner) buildPluginConfigs() map[string]runner.PluginConfig {
+	if len(r.cfg.Plugins) == 0 {
+		return nil
+	}
+	plugins := make(map[string]runner.PluginConfig, len(r.cfg.Plugins))
+	for name, p := range r.cfg.Plugins {
+		plugins[name] = runner.PluginConfig{
+			Address: p.Address,
+			Options: p.Options,
+		}
+	}
+	return plugins
 }

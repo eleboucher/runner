@@ -14,6 +14,10 @@ type LinuxContainerEnvironmentExtensions struct {
 	toolCache string
 }
 
+func (l *LinuxContainerEnvironmentExtensions) SetToolCache(path string) {
+	l.toolCache = path
+}
+
 // Resolves the equivalent host path inside the container
 // This is required for windows and WSL 2 to translate things like C:\Users\Myproject to /mnt/users/Myproject
 // For use in docker volumes and binds
@@ -52,11 +56,15 @@ func (*LinuxContainerEnvironmentExtensions) GetName() string {
 	return "NAME"
 }
 
-func (*LinuxContainerEnvironmentExtensions) GetLXC() bool {
-	return false
+func (*LinuxContainerEnvironmentExtensions) BackendName() string {
+	return "docker"
 }
 
-func (*LinuxContainerEnvironmentExtensions) GetK8s() bool {
+func (*LinuxContainerEnvironmentExtensions) SupportsDockerActions() bool {
+	return true
+}
+
+func (*LinuxContainerEnvironmentExtensions) ManagesOwnNetworking() bool {
 	return false
 }
 

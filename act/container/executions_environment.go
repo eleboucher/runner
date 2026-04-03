@@ -2,7 +2,7 @@ package container
 
 import "context"
 
-type K8sServiceAdder interface {
+type ServiceAdder interface {
 	AddServiceContainerRaw(name, image string, env map[string]string, ports []string)
 }
 
@@ -11,8 +11,9 @@ type ExecutionsEnvironment interface {
 	ToContainerPath(string) string
 	GetName() string
 	GetRoot() string
-	GetLXC() bool
-	GetK8s() bool
+	BackendName() string
+	SupportsDockerActions() bool
+	ManagesOwnNetworking() bool
 	GetActPath() string
 	GetPathVariableName() string
 	DefaultPathVariable() string

@@ -79,7 +79,16 @@ func TestLabel_Parse(t *testing.T) {
 		{
 			args:    "label1:invalidscheme",
 			want:    nil,
-			wantErr: true,
+			wantErr: true, // unknown scheme without arg
+		},
+		{
+			args: "k8s-runner:myplugin://some-config",
+			want: &Label{
+				Name:   "k8s-runner",
+				Schema: "myplugin",
+				Arg:    "//some-config",
+			},
+			wantErr: false,
 		},
 		{
 			args:    " label1:lxc://debian:buster",
@@ -169,4 +178,22 @@ func TestLabels_Strings(t *testing.T) {
 	}
 
 	assert.Equal(t, expected, labels.Strings())
+}
+
+func TestLabels_PickPlatform_Plugin(t *testing.T) {
+	t.Run("plugin scheme routes correctly", func(t *testing.T) {
+		labels := Labels{
+			{Name: "k8s-runner", Schema: "myplugin", Arg: "//some-config"},
+		}
+		platform := labels.PickPlatform([]string{"k8s-runner"})
+		assert.Equal(t, "plugin:myplugin://some-config", platform)
+	})
+
+	t.Run("falls back to docker default when no match", func(t *testing.T) {
+		labels := Labels{
+			{Name: "k8s-runner", Schema: "myplugin", Arg: "//some-config"},
+		}
+		platform := labels.PickPlatform([]string{"unknown-runner"})
+		assert.Equal(t, "node:22-bookworm", platform)
+	})
 }

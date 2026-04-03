@@ -305,7 +305,7 @@ func (p *K8sPod) ConnectToNetwork(_ string) common.Executor {
 }
 
 func (p *K8sPod) UpdateFromEnv(srcPath string, env *map[string]string) common.Executor {
-	return parseEnvFile(p, srcPath, env).IfNot(common.Dryrun)
+	return ParseEnvFile(p, srcPath, env).IfNot(common.Dryrun)
 }
 
 func (p *K8sPod) UpdateFromImageEnv(_ *map[string]string) common.Executor {
@@ -348,7 +348,15 @@ func (p *K8sPod) IsHealthy(ctx context.Context) (time.Duration, error) {
 	return 0, nil
 }
 
-func (*K8sPod) GetK8s() bool {
+func (*K8sPod) BackendName() string {
+	return "k8spod"
+}
+
+func (*K8sPod) SupportsDockerActions() bool {
+	return false
+}
+
+func (*K8sPod) ManagesOwnNetworking() bool {
 	return true
 }
 

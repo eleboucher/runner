@@ -79,6 +79,13 @@ type Config struct {
 	KubernetesPodSpecs    map[string]string // label name → podspec file path
 	KubeConfig            string
 	KubernetesPollTimeout time.Duration
+
+	Plugins map[string]PluginConfig
+}
+
+type PluginConfig struct {
+	Address string
+	Options map[string]string
 }
 
 // GetToken: Adapt to Gitea

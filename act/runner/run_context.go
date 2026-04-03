@@ -25,6 +25,7 @@ import (
 	"code.forgejo.org/forgejo/runner/v12/act/container"
 	"code.forgejo.org/forgejo/runner/v12/act/exprparser"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
+	"code.forgejo.org/forgejo/runner/v12/act/plugin"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -535,9 +536,21 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		for _, port := range spec.Ports {
 			interpolatedPorts = append(interpolatedPorts, rc.ExprEval.Interpolate(ctx, port))
 		}
-		exposedPorts, portBindings, err := nat.ParsePortSpecs(interpolatedPorts)
+		natExposed, natBindings, err := nat.ParsePortSpecs(interpolatedPorts)
 		if err != nil {
 			return fmt.Errorf("failed to parse service %s ports: %w", serviceID, err)
+		}
+		exposedPorts := make(map[string]struct{}, len(natExposed))
+		for port := range natExposed {
+			exposedPorts[string(port)] = struct{}{}
+		}
+		portBindings := make(map[string][]container.PortBinding, len(natBindings))
+		for port, bindings := range natBindings {
+			pb := make([]container.PortBinding, len(bindings))
+			for i, b := range bindings {
+				pb[i] = container.PortBinding{HostIP: b.HostIP, HostPort: b.HostPort}
+			}
+			portBindings[string(port)] = pb
 		}
 
 		serviceContainerName := createContainerName(rc.jobContainerName(), serviceID)
@@ -893,10 +906,136 @@ func (rc *RunContext) startContainer() common.Executor {
 		if rc.IsHostEnv(ctx) {
 			return rc.startHostEnvironment()(ctx)
 		}
+		if name := rc.pluginName(ctx); name != "" {
+			return rc.startPluginEnvironment(name)(ctx)
+		}
 		if rc.IsK8sEnv(ctx) {
 			return rc.startK8sEnvironment()(ctx)
 		}
 		return rc.startJobContainer()(ctx)
+	}
+}
+
+// pluginName extracts the plugin name from a "plugin:<scheme>:<arg>" platform string,
+// or returns "" if the job doesn't target a plugin.
+func (rc *RunContext) pluginName(ctx context.Context) string {
+	image := rc.runsOnImage(ctx)
+	if after, ok := strings.CutPrefix(image, "plugin:"); ok {
+		// after is "<scheme>:<arg>" — the scheme is the plugin name
+		if name, _, ok := strings.Cut(after, ":"); ok {
+			return name
+		}
+		return after
+	}
+	return ""
+}
+
+func (rc *RunContext) pluginLabelArg(ctx context.Context) string {
+	image := rc.runsOnImage(ctx)
+	if after, ok := strings.CutPrefix(image, "plugin:"); ok {
+		if _, arg, ok := strings.Cut(after, ":"); ok {
+			return strings.TrimPrefix(arg, "//")
+		}
+	}
+	return ""
+}
+
+func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
+	return func(ctx context.Context) error {
+		logger := common.Logger(ctx)
+
+		pluginCfg, ok := rc.Config.Plugins[name]
+		if !ok {
+			return fmt.Errorf("plugin %q not found in configuration", name)
+		}
+
+		logger.Infof("\U0001f50c Connecting to plugin %s at %s", name, pluginCfg.Address)
+
+		pluginClient, err := plugin.NewClient(ctx, pluginCfg.Address)
+		if err != nil {
+			return fmt.Errorf("connect to plugin %s: %w", name, err)
+		}
+
+		rawLogger := logger.WithField("raw_output", true)
+		logWriter := common.NewLineWriter(rc.commandHandler(ctx), func(s string) bool {
+			if rc.Config.LogOutput {
+				rawLogger.Infof("%s", s)
+			} else {
+				rawLogger.Debugf("%s", s)
+			}
+			return true
+		})
+
+		opts := make(map[string]string)
+		maps.Copy(opts, pluginCfg.Options)
+		if labelArg := rc.pluginLabelArg(ctx); labelArg != "" {
+			opts["label_arg"] = labelArg
+		}
+		opts["job_timeout"] = rc.Config.ContainerMaxLifetime.String()
+
+		containerName := rc.jobContainerName()
+		rc.Env["JOB_CONTAINER_NAME"] = containerName
+
+		caps := pluginClient.Capabilities()
+		envList := []string{
+			fmt.Sprintf("RUNNER_TOOL_CACHE=%s", caps.GetToolCachePath()),
+			fmt.Sprintf("RUNNER_OS=%s", caps.GetRunnerContext()["os"]),
+			fmt.Sprintf("RUNNER_ARCH=%s", caps.GetRunnerContext()["arch"]),
+			fmt.Sprintf("RUNNER_TEMP=%s", caps.GetRunnerContext()["temp"]),
+			"LANG=C.UTF-8",
+		}
+
+		env := pluginClient.NewEnvironment(&container.NewContainerInput{
+			Image:      rc.containerImage(ctx),
+			Name:       containerName,
+			Env:        envList,
+			WorkingDir: rc.Config.Workdir,
+			Stdout:     logWriter,
+			Stderr:     logWriter,
+		}, opts)
+
+		if adder, ok := env.(container.ServiceAdder); ok {
+			for serviceID, spec := range rc.Run.Job().Services {
+				interpolatedImage := rc.ExprEval.Interpolate(ctx, spec.Image)
+				if interpolatedImage == "" {
+					continue
+				}
+				envs := make(map[string]string, len(spec.Env))
+				for k, v := range spec.Env {
+					envs[k] = rc.ExprEval.Interpolate(ctx, v)
+				}
+				var ports []string
+				for _, port := range spec.Ports {
+					ports = append(ports, rc.ExprEval.Interpolate(ctx, port))
+				}
+				adder.AddServiceContainerRaw(serviceID, interpolatedImage, envs, ports)
+			}
+		}
+
+		rc.JobContainer = env
+
+		rc.cleanUpJobContainer = func(ctx context.Context) error {
+			defer pluginClient.Close()
+			if rc.JobContainer != nil {
+				return rc.JobContainer.Remove()(ctx)
+			}
+			return nil
+		}
+
+		return common.NewPipelineExecutor(
+			env.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
+			env.Start(false),
+			env.Exec([]string{"mkdir", "-p", rc.Config.Workdir}, nil, "", ""),
+			env.Copy(env.GetActPath()+"/", &container.FileEntry{
+				Name: "workflow/event.json",
+				Mode: 0o644,
+				Body: rc.EventJSON,
+			}, &container.FileEntry{
+				Name: "workflow/envs.txt",
+				Mode: 0o666,
+				Body: "",
+			}),
+		)(ctx)
 	}
 }
 
@@ -964,7 +1103,7 @@ func (rc *RunContext) startK8sEnvironment() common.Executor {
 
 		rc.JobContainer = k8sPod
 
-		if adder, ok := k8sPod.(container.K8sServiceAdder); ok {
+		if adder, ok := k8sPod.(container.ServiceAdder); ok {
 			for serviceID, spec := range rc.Run.Job().Services {
 				interpolatedImage := rc.ExprEval.Interpolate(ctx, spec.Image)
 				if interpolatedImage == "" {

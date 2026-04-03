@@ -17,7 +17,6 @@ import (
 	"code.forgejo.org/forgejo/runner/v12/testutils"
 	"gotest.tools/v3/skip"
 
-	"github.com/docker/go-connections/nat"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -817,8 +816,8 @@ jobs:
 					UsernsMode:      "",
 					DefaultPlatform: "",
 					NetworkAliases:  []string{"service1"},
-					ExposedPorts:    nat.PortSet{},
-					PortBindings:    nat.PortMap{},
+					ExposedPorts:    map[string]struct{}{},
+					PortBindings:    map[string][]container.PortBinding{},
 					ConfigOptions:   "",
 					JobOptions:      "",
 				},
@@ -837,8 +836,8 @@ jobs:
 					UsernsMode:      "",
 					DefaultPlatform: "",
 					NetworkAliases:  []string{"service2"},
-					ExposedPorts:    nat.PortSet{},
-					PortBindings:    nat.PortMap{},
+					ExposedPorts:    map[string]struct{}{},
+					PortBindings:    map[string][]container.PortBinding{},
 					ConfigOptions:   "",
 					JobOptions:      "",
 				},

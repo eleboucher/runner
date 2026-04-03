@@ -6,8 +6,13 @@ import (
 	"time"
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
-	"github.com/docker/go-connections/nat"
 )
+
+// PortBinding represents a binding between a container port and a host address.
+type PortBinding struct {
+	HostIP   string
+	HostPort string
+}
 
 // NewContainerInput the input for the New function
 type NewContainerInput struct {
@@ -31,8 +36,8 @@ type NewContainerInput struct {
 	UsernsMode      string
 	DefaultPlatform string // platform if not overridden in JobOptions
 	NetworkAliases  []string
-	ExposedPorts    nat.PortSet
-	PortBindings    nat.PortMap
+	ExposedPorts    map[string]struct{}      // port/proto → struct{} (e.g., "8080/tcp")
+	PortBindings    map[string][]PortBinding // port/proto → host bindings
 
 	ConfigOptions string
 	JobOptions    string

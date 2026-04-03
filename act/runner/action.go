@@ -281,8 +281,8 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 	logger := common.Logger(ctx)
 	rc := step.getRunContext()
 
-	if rc.IsK8sEnv(ctx) {
-		return fmt.Errorf("Docker-based actions are not supported in Kubernetes mode")
+	if !rc.JobContainer.SupportsDockerActions() {
+		return fmt.Errorf("Docker-based actions are not supported in %s mode", rc.JobContainer.BackendName())
 	}
 
 	action := step.getActionModel()
@@ -439,7 +439,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
 	networkMode := fmt.Sprintf("container:%s", rc.jobContainerName())
-	if rc.IsHostEnv(ctx) {
+	if rc.JobContainer.ManagesOwnNetworking() {
 		networkMode = "default"
 	}
 	stepContainer := container.NewContainer(&container.NewContainerInput{

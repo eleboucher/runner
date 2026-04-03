@@ -39,9 +39,6 @@ func Parse(str string) (*Label, error) {
 
 	if len(splits) >= 2 {
 		label.Schema = splits[1]
-		if label.Schema != SchemeHost && label.Schema != SchemeDocker && label.Schema != SchemeLXC && label.Schema != SchemeK8sPod {
-			return nil, fmt.Errorf("unsupported schema: %s", label.Schema)
-		}
 	}
 
 	if len(splits) >= 3 {
@@ -59,6 +56,11 @@ func Parse(str string) (*Label, error) {
 			label.Arg = ArgLXC
 		case SchemeK8sPod:
 			return nil, fmt.Errorf("schema %q requires a podspec file path as argument (e.g. \"mylabel:k8spod://path/to/podspec.yaml\")", SchemeK8sPod)
+		case SchemeHost:
+			// host has no default arg
+		default:
+			// Plugin schemes require an argument (the plugin address or config reference).
+			return nil, fmt.Errorf("schema %q requires an argument (e.g. \"mylabel:%s://arg\")", label.Schema, label.Schema)
 		}
 	}
 
@@ -111,8 +113,8 @@ func (l Labels) PickPlatform(runsOn []string) string {
 		case SchemeK8sPod:
 			platforms[label.Name] = "k8spod"
 		default:
-			// It should not happen, because Parse has checked it.
-			continue
+			// Plugin schemes: "plugin:<scheme>://<arg>"
+			platforms[label.Name] = "plugin:" + label.Schema + ":" + label.Arg
 		}
 	}
 	for _, v := range runsOn {

@@ -11,7 +11,7 @@ import (
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 )
 
-func parseEnvFile(e Container, srcPath string, env *map[string]string) common.Executor {
+func ParseEnvFile(e Container, srcPath string, env *map[string]string) common.Executor {
 	localEnv := *env
 	return func(ctx context.Context) error {
 		envTar, err := e.GetContainerArchive(ctx, srcPath)
@@ -25,7 +25,7 @@ func parseEnvFile(e Container, srcPath string, env *map[string]string) common.Ex
 			return err
 		}
 
-		// parseEnvFile is used to parse an action's outputs into $FORGEJO_ENV, $FORGEJO_OUTPUTS, and $FORGEJO_STATE.
+		// ParseEnvFile is used to parse an action's outputs into $FORGEJO_ENV, $FORGEJO_OUTPUTS, and $FORGEJO_STATE.
 		// The limits described here are currently based upon defined limits for OUTPUTS, but seem reasonable for the
 		// other usages as well.
 		//
