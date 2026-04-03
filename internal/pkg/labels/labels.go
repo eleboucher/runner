@@ -16,6 +16,8 @@ const (
 
 	SchemeLXC = "lxc"
 	ArgLXC    = "//debian:bookworm"
+
+	SchemeK8sPod = "k8spod"
 )
 
 type Label struct {
@@ -37,7 +39,7 @@ func Parse(str string) (*Label, error) {
 
 	if len(splits) >= 2 {
 		label.Schema = splits[1]
-		if label.Schema != SchemeHost && label.Schema != SchemeDocker && label.Schema != SchemeLXC {
+		if label.Schema != SchemeHost && label.Schema != SchemeDocker && label.Schema != SchemeLXC && label.Schema != SchemeK8sPod {
 			return nil, fmt.Errorf("unsupported schema: %s", label.Schema)
 		}
 	}
@@ -55,6 +57,8 @@ func Parse(str string) (*Label, error) {
 			label.Arg = ArgDocker
 		case SchemeLXC:
 			label.Arg = ArgLXC
+		case SchemeK8sPod:
+			return nil, fmt.Errorf("schema %q requires a podspec file path as argument (e.g. \"mylabel:k8spod://path/to/podspec.yaml\")", SchemeK8sPod)
 		}
 	}
 
@@ -104,6 +108,8 @@ func (l Labels) PickPlatform(runsOn []string) string {
 			platforms[label.Name] = "-self-hosted"
 		case SchemeLXC:
 			platforms[label.Name] = "lxc:" + strings.TrimPrefix(label.Arg, "//")
+		case SchemeK8sPod:
+			platforms[label.Name] = "k8spod"
 		default:
 			// It should not happen, because Parse has checked it.
 			continue

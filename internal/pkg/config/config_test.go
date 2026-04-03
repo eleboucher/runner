@@ -51,12 +51,13 @@ func TestNew(t *testing.T) {
 		home, err := os.UserHomeDir()
 		require.NoError(t, err)
 
-		assert.Equal(t, 6, reflect.TypeOf(Config{}).NumField())
+		assert.Equal(t, 7, reflect.TypeOf(Config{}).NumField())
 		assert.Equal(t, 2, reflect.TypeOf(Log{}).NumField())
 		assert.Equal(t, 11, reflect.TypeOf(Runner{}).NumField())
 		assert.Equal(t, 8, reflect.TypeOf(Cache{}).NumField())
 		assert.Equal(t, 9, reflect.TypeOf(Container{}).NumField())
 		assert.Equal(t, 1, reflect.TypeOf(Host{}).NumField())
+		assert.Equal(t, 3, reflect.TypeOf(Kubernetes{}).NumField())
 		assert.Equal(t, 1, reflect.TypeOf(Server{}).NumField())
 
 		assert.Equal(t, "info", config.Log.Level)
@@ -98,6 +99,10 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, filepath.Join(home, ".cache", "act"), config.Host.WorkdirParent)
 		assert.True(t, filepath.IsAbs(config.Host.WorkdirParent))
 
+		assert.Equal(t, "default", config.Kubernetes.Namespace)
+		assert.Empty(t, config.Kubernetes.KubeConfig)
+		assert.Equal(t, 10*time.Minute, config.Kubernetes.PollTimeout)
+
 		assert.Empty(t, config.Server.Connections)
 	})
 
@@ -115,12 +120,13 @@ func TestNew(t *testing.T) {
 		home, err := os.UserHomeDir()
 		require.NoError(t, err)
 
-		assert.Equal(t, 6, reflect.TypeOf(Config{}).NumField())
+		assert.Equal(t, 7, reflect.TypeOf(Config{}).NumField())
 		assert.Equal(t, 2, reflect.TypeOf(Log{}).NumField())
 		assert.Equal(t, 11, reflect.TypeOf(Runner{}).NumField())
 		assert.Equal(t, 8, reflect.TypeOf(Cache{}).NumField())
 		assert.Equal(t, 9, reflect.TypeOf(Container{}).NumField())
 		assert.Equal(t, 1, reflect.TypeOf(Host{}).NumField())
+		assert.Equal(t, 3, reflect.TypeOf(Kubernetes{}).NumField())
 		assert.Equal(t, 1, reflect.TypeOf(Server{}).NumField())
 
 		assert.Equal(t, "info", config.Log.Level)
@@ -277,6 +283,10 @@ container:
   force_rebuild: true
 host:
   workdir_parent: some/path
+kubernetes:
+  namespace: ci-jobs
+  kubeconfig: /etc/k8s/config
+  poll_timeout: 5m
 server:
   connections:
     example:
@@ -301,12 +311,13 @@ server:
 		config, err := New(FromFile(configPath))
 		require.NoError(t, err)
 
-		assert.Equal(t, 6, reflect.TypeOf(Config{}).NumField())
+		assert.Equal(t, 7, reflect.TypeOf(Config{}).NumField())
 		assert.Equal(t, 2, reflect.TypeOf(Log{}).NumField())
 		assert.Equal(t, 11, reflect.TypeOf(Runner{}).NumField())
 		assert.Equal(t, 8, reflect.TypeOf(Cache{}).NumField())
 		assert.Equal(t, 9, reflect.TypeOf(Container{}).NumField())
 		assert.Equal(t, 1, reflect.TypeOf(Host{}).NumField())
+		assert.Equal(t, 3, reflect.TypeOf(Kubernetes{}).NumField())
 		assert.Equal(t, 1, reflect.TypeOf(Server{}).NumField())
 
 		// Verify that each value loaded from the configuration file does not match the default configuration.
@@ -382,6 +393,13 @@ server:
 		assert.NotEqual(t, defaultConfig.Host.WorkdirParent, config.Host.WorkdirParent)
 		assert.True(t, strings.HasSuffix(config.Host.WorkdirParent, filepath.FromSlash("some/path")))
 		assert.True(t, filepath.IsAbs(config.Host.WorkdirParent))
+
+		assert.NotEqual(t, defaultConfig.Kubernetes.Namespace, config.Kubernetes.Namespace)
+		assert.Equal(t, "ci-jobs", config.Kubernetes.Namespace)
+		assert.NotEqual(t, defaultConfig.Kubernetes.KubeConfig, config.Kubernetes.KubeConfig)
+		assert.Equal(t, "/etc/k8s/config", config.Kubernetes.KubeConfig)
+		assert.NotEqual(t, defaultConfig.Kubernetes.PollTimeout, config.Kubernetes.PollTimeout)
+		assert.Equal(t, 5*time.Minute, config.Kubernetes.PollTimeout)
 
 		assert.NotEqual(t, len(defaultConfig.Server.Connections), len(config.Server.Connections))
 		assert.Len(t, config.Server.Connections, 1)

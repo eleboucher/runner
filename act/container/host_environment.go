@@ -407,6 +407,10 @@ func (e *HostEnvironment) GetLXC() bool {
 	return e.LXC
 }
 
+func (e *HostEnvironment) GetK8s() bool {
+	return false
+}
+
 func (e *HostEnvironment) GetName() string {
 	return e.Name
 }

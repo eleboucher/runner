@@ -1,0 +1,19 @@
+# Default podspec template for Forgejo Runner K8s backend.
+# Referenced from runner config labels, e.g.:
+#   ubuntu-latest:k8spod:///config/podspec-default.yaml
+#
+# The runner overrides the "main" container's command and working directory.
+# The image can be set here or left empty to use the workflow's runs-on image.
+
+containers:
+  - name: main
+    image: node:22-bookworm
+    resources:
+      requests:
+        cpu: "500m"
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+        ephemeral-storage: 10Gi
+restartPolicy: Never

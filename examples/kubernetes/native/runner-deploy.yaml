@@ -1,0 +1,124 @@
+# Kubernetes Deployment for the Forgejo Runner using the K8s native backend.
+# The runner pod creates job pods via the K8s API — no Docker daemon needed.
+#
+# Prerequisites:
+#   1. Create the namespace:        kubectl create namespace forgejo-runner
+#   2. Apply RBAC:                  kubectl apply -f runner-rbac.yaml
+#   3. Register the runner and place the config in a ConfigMap (see runner.yaml)
+#   4. Apply:                       kubectl apply -f runner-deploy.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: runner-config
+  namespace: forgejo-runner
+data:
+  config.yaml: |
+    # Paste your runner.yaml content here, or mount it from a separate ConfigMap.
+    # See runner.yaml for an example.
+
+  podspec-default.yaml: |
+    containers:
+      - name: main
+        image: node:22-bookworm
+        resources:
+          requests:
+            cpu: "500m"
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+    restartPolicy: Never
+
+  podspec-dind.yaml: |
+    containers:
+      - name: main
+        image: node:22-bookworm
+        env:
+          - name: DOCKER_HOST
+            value: tcp://localhost:2376
+          - name: DOCKER_TLS_VERIFY
+            value: "1"
+          - name: DOCKER_CERT_PATH
+            value: /certs/client
+        volumeMounts:
+          - name: shared
+            mountPath: /shared
+          - name: docker-certs
+            mountPath: /certs/client
+            readOnly: true
+        resources:
+          requests:
+            cpu: "500m"
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+      - name: docker
+        image: docker:28-dind
+        env:
+          - name: DOCKER_TLS_CERTDIR
+            value: /certs
+        securityContext:
+          privileged: true
+        volumeMounts:
+          - name: shared
+            mountPath: /shared
+          - name: docker-certs
+            mountPath: /certs
+          - name: docker-data
+            mountPath: /var/lib/docker
+        resources:
+          requests:
+            cpu: "500m"
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 4Gi
+    volumes:
+      - name: shared
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: docker-certs
+        emptyDir: {}
+      - name: docker-data
+        emptyDir: {}
+    restartPolicy: Never
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-runner
+  namespace: forgejo-runner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: forgejo-runner
+  template:
+    metadata:
+      labels:
+        app: forgejo-runner
+    spec:
+      serviceAccountName: forgejo-runner
+      containers:
+        - name: runner
+          image: code.forgejo.org/forgejo/runner:6.4.0
+          args: ["forgejo-runner", "--config", "/config/config.yaml", "daemon"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: runner-config

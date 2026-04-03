@@ -80,6 +80,12 @@ type Host struct {
 	WorkdirParent string // WorkdirParent specifies the parent directory for the host's working directory.
 }
 
+type Kubernetes struct {
+	Namespace   string
+	KubeConfig  string // Empty means in-cluster config.
+	PollTimeout time.Duration
+}
+
 // Server configures connections to Forgejo and their behaviour.
 type Server struct {
 	Connections map[string]*Connection // Connections defines which Forgejo instance(s) Forgejo Runner should connect to. The map's key serves as connection name.
@@ -113,22 +119,24 @@ const (
 
 // Config represents the overall configuration.
 type Config struct {
-	Log       Log       // Log represents the configuration for logging.
-	Runner    Runner    // Runner represents the configuration for the runner.
-	Cache     Cache     // Cache represents the configuration for caching.
-	Container Container // Container represents the configuration for the container.
-	Host      Host      // Host represents the configuration for the host.
-	Server    Server    // Server configures connections to Forgejo and their behaviour.
+	Log        Log       // Log represents the configuration for logging.
+	Runner     Runner    // Runner represents the configuration for the runner.
+	Cache      Cache     // Cache represents the configuration for caching.
+	Container  Container // Container represents the configuration for the container.
+	Host       Host      // Host represents the configuration for the host.
+	Kubernetes Kubernetes
+	Server     Server // Server configures connections to Forgejo and their behaviour.
 }
 
 // serializedConfiguration is the top-level structure of the on-disk format of the Forgejo Runner configuration.
 type serializedConfiguration struct {
-	Log       serializedLogSettings       `yaml:"log"`       // Log represents the configuration for logging.
-	Runner    serializedRunnerSettings    `yaml:"runner"`    // Runner represents the configuration for the runner.
-	Cache     serializedCacheSettings     `yaml:"cache"`     // Cache represents the configuration for caching.
-	Container serializedContainerSettings `yaml:"container"` // Container represents the configuration for the container.
-	Host      serializedHostSettings      `yaml:"host"`      // Host represents the configuration for the host.
-	Server    serializedServerSettings    `yaml:"server"`    // Server configures connections to Forgejo and their behaviour.
+	Log        serializedLogSettings        `yaml:"log"`       // Log represents the configuration for logging.
+	Runner     serializedRunnerSettings     `yaml:"runner"`    // Runner represents the configuration for the runner.
+	Cache      serializedCacheSettings      `yaml:"cache"`     // Cache represents the configuration for caching.
+	Container  serializedContainerSettings  `yaml:"container"` // Container represents the configuration for the container.
+	Host       serializedHostSettings       `yaml:"host"`      // Host represents the configuration for the host.
+	Kubernetes serializedKubernetesSettings `yaml:"kubernetes"`
+	Server     serializedServerSettings     `yaml:"server"` // Server configures connections to Forgejo and their behaviour.
 }
 
 func (s *serializedConfiguration) applyTo(config *Config) error {
@@ -146,6 +154,9 @@ func (s *serializedConfiguration) applyTo(config *Config) error {
 	}
 	if err := s.Host.applyTo(config); err != nil {
 		return fmt.Errorf("invalid `host` settings: %w", err)
+	}
+	if err := s.Kubernetes.applyTo(config); err != nil {
+		return fmt.Errorf("invalid `kubernetes` settings: %w", err)
 	}
 	if err := s.Server.applyTo(config); err != nil {
 		return fmt.Errorf("invalid `server` settings: %w", err)
@@ -411,6 +422,29 @@ func (s *serializedHostSettings) applyTo(config *Config) error {
 	return nil
 }
 
+type serializedKubernetesSettings struct {
+	Namespace   string        `yaml:"namespace"`
+	KubeConfig  string        `yaml:"kubeconfig"`
+	PollTimeout time.Duration `yaml:"poll_timeout"`
+}
+
+func (s *serializedKubernetesSettings) applyTo(config *Config) error {
+	if s.Namespace != "" {
+		config.Kubernetes.Namespace = s.Namespace
+	}
+	if s.KubeConfig != "" {
+		config.Kubernetes.KubeConfig = s.KubeConfig
+	}
+	if s.PollTimeout != 0 {
+		if s.PollTimeout < 0 {
+			log.Warnf("Ignoring invalid `kubernetes.poll_timeout`: %q", s.PollTimeout)
+		} else {
+			config.Kubernetes.PollTimeout = s.PollTimeout
+		}
+	}
+	return nil
+}
+
 // serializedServerSettings declares connections to Forgejo instances.
 type serializedServerSettings struct {
 	Connections map[string]serializedConnectionSettings `yaml:"connections"` // Connections defines which Forgejo instance(s) Forgejo Runner should connect to. The map's key serves as connection name.
@@ -519,9 +553,10 @@ func New(opts ...Option) (*Config, error) {
 			},
 			DefaultLabels: []string{},
 		},
-		Cache:     Cache{Enabled: true, Dir: filepath.Join(home, ".cache", "actcache")},
-		Container: Container{DockerHost: "-", WorkdirParent: "workspace", ValidVolumes: []string{}},
-		Host:      Host{WorkdirParent: filepath.Join(home, ".cache", "act")},
+		Cache:      Cache{Enabled: true, Dir: filepath.Join(home, ".cache", "actcache")},
+		Container:  Container{DockerHost: "-", WorkdirParent: "workspace", ValidVolumes: []string{}},
+		Host:       Host{WorkdirParent: filepath.Join(home, ".cache", "act")},
+		Kubernetes: Kubernetes{Namespace: "default", PollTimeout: 10 * time.Minute},
 	}
 
 	for _, opt := range opts {

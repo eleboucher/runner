@@ -280,6 +280,11 @@ func removeGitIgnore(ctx context.Context, directory string) error {
 func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, subpath string, localAction bool, entrypointType string) error {
 	logger := common.Logger(ctx)
 	rc := step.getRunContext()
+
+	if rc.IsK8sEnv(ctx) {
+		return fmt.Errorf("Docker-based actions are not supported in Kubernetes mode")
+	}
+
 	action := step.getActionModel()
 
 	targetPlatform := rc.Config.ContainerArchitecture

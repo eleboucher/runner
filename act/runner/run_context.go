@@ -659,7 +659,7 @@ func (rc *RunContext) startJobContainer() common.Executor {
 			rc.pullServicesImages(rc.Config.ForcePull),
 			rc.JobContainer.Pull(rc.Config.ForcePull),
 			rc.stopJobContainer(),
-			container.NewDockerNetworkCreateExecutor(rc.getNetworkName(ctx), &networkConfig).IfBool(!rc.IsHostEnv(ctx) && rc.Config.ContainerNetworkMode == ""), // if the value of `ContainerNetworkMode` is empty string, then will create a new network for containers.
+			container.NewDockerNetworkCreateExecutor(rc.getNetworkName(ctx), &networkConfig).IfBool(!rc.IsHostEnv(ctx) && !rc.IsK8sEnv(ctx) && rc.Config.ContainerNetworkMode == ""), // if the value of `ContainerNetworkMode` is empty string, then will create a new network for containers.
 			rc.startServiceContainers(rc.getNetworkName(ctx)),
 			rc.JobContainer.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
 			rc.JobContainer.Start(false),
@@ -882,6 +882,9 @@ func (rc *RunContext) getToolCache(ctx context.Context) string {
 	if rc.IsHostEnv(ctx) {
 		return filepath.Join(rc.ActionCacheDir(), "tool_cache")
 	}
+	if rc.IsK8sEnv(ctx) {
+		return "/shared/toolcache"
+	}
 	return "/opt/hostedtoolcache"
 }
 
@@ -890,7 +893,116 @@ func (rc *RunContext) startContainer() common.Executor {
 		if rc.IsHostEnv(ctx) {
 			return rc.startHostEnvironment()(ctx)
 		}
+		if rc.IsK8sEnv(ctx) {
+			return rc.startK8sEnvironment()(ctx)
+		}
 		return rc.startJobContainer()(ctx)
+	}
+}
+
+// IsK8sEnv reports whether this job targets the Kubernetes backend.
+// It relies on PickPlatform returning "k8spod" for k8spod labels (see labels.PickPlatform).
+func (rc *RunContext) IsK8sEnv(ctx context.Context) bool {
+	return rc.runsOnImage(ctx) == "k8spod"
+}
+
+func (rc *RunContext) startK8sEnvironment() common.Executor {
+	return func(ctx context.Context) error {
+		logger := common.Logger(ctx)
+
+		image := rc.platformImage(ctx)
+		rawLogger := logger.WithField("raw_output", true)
+		logWriter := common.NewLineWriter(rc.commandHandler(ctx), func(s string) bool {
+			if rc.Config.LogOutput {
+				rawLogger.Infof("%s", s)
+			} else {
+				rawLogger.Debugf("%s", s)
+			}
+			return true
+		})
+
+		logger.Infof("\U0001f680  Start K8s pod image=%s", image)
+		name := rc.jobContainerName()
+		rc.Env["JOB_CONTAINER_NAME"] = name
+
+		envList := make([]string, 0, 5)
+		envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", "/shared/toolcache"))
+		envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
+		envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", container.RunnerArch(ctx)))
+		envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
+		envList = append(envList, fmt.Sprintf("%s=%s", "LANG", "C.UTF-8"))
+
+		podSpecPath := ""
+		if rc.Config.KubernetesPodSpecs != nil {
+			for _, runsOn := range rc.Run.Job().RunsOn() {
+				if spec, ok := rc.Config.KubernetesPodSpecs[runsOn]; ok {
+					podSpecPath = spec
+					break
+				}
+			}
+		}
+
+		k8sConfig := &container.K8sPodConfig{
+			Namespace:   rc.Config.KubernetesNamespace,
+			PodSpec:     podSpecPath,
+			KubeConfig:  rc.Config.KubeConfig,
+			PollTimeout: rc.Config.KubernetesPollTimeout,
+			JobTimeout:  rc.Config.ContainerMaxLifetime,
+		}
+
+		k8sPod, err := container.NewK8sPod(&container.NewContainerInput{
+			Image:      image,
+			Name:       name,
+			Env:        envList,
+			WorkingDir: rc.Config.Workdir,
+			Stdout:     logWriter,
+			Stderr:     logWriter,
+		}, k8sConfig)
+		if err != nil {
+			return fmt.Errorf("create k8s pod: %w", err)
+		}
+
+		rc.JobContainer = k8sPod
+
+		if adder, ok := k8sPod.(container.K8sServiceAdder); ok {
+			for serviceID, spec := range rc.Run.Job().Services {
+				interpolatedImage := rc.ExprEval.Interpolate(ctx, spec.Image)
+				if interpolatedImage == "" {
+					continue
+				}
+				envs := make(map[string]string, len(spec.Env))
+				for k, v := range spec.Env {
+					envs[k] = rc.ExprEval.Interpolate(ctx, v)
+				}
+				var ports []string
+				for _, port := range spec.Ports {
+					ports = append(ports, rc.ExprEval.Interpolate(ctx, port))
+				}
+				adder.AddServiceContainerRaw(serviceID, interpolatedImage, envs, ports)
+			}
+		}
+
+		rc.cleanUpJobContainer = func(ctx context.Context) error {
+			if rc.JobContainer != nil {
+				return rc.JobContainer.Remove()(ctx)
+			}
+			return nil
+		}
+
+		return common.NewPipelineExecutor(
+			rc.JobContainer.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
+			rc.JobContainer.Start(false),
+			rc.JobContainer.Exec([]string{"mkdir", "-p", rc.Config.Workdir}, nil, "", ""),
+			rc.JobContainer.Copy(rc.JobContainer.GetActPath()+"/", &container.FileEntry{
+				Name: "workflow/event.json",
+				Mode: 0o644,
+				Body: rc.EventJSON,
+			}, &container.FileEntry{
+				Name: "workflow/envs.txt",
+				Mode: 0o666,
+				Body: "",
+			}),
+		)(ctx)
 	}
 }
 

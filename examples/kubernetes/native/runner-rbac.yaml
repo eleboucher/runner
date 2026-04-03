@@ -1,0 +1,35 @@
+# RBAC for the Forgejo Runner K8s backend.
+# The runner needs permission to create, watch, get, and delete pods in its namespace.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: forgejo-runner
+  namespace: forgejo-runner
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: forgejo-runner
+  namespace: forgejo-runner
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: forgejo-runner
+  namespace: forgejo-runner
+subjects:
+  - kind: ServiceAccount
+    name: forgejo-runner
+    namespace: forgejo-runner
+roleRef:
+  kind: Role
+  name: forgejo-runner
+  apiGroup: rbac.authorization.k8s.io

@@ -347,10 +347,15 @@ func (r *Runner) run(ctx context.Context, task *runnerv1.Task, reporter *report.
 		}
 	}
 
+	workdirParent := r.cfg.Container.WorkdirParent
+	if len(r.buildK8sPodSpecs()) > 0 && workdirParent == "workspace" {
+		workdirParent = "shared/workdir"
+	}
+
 	runnerConfig := &runner.Config{
 		// On Linux, Workdir will be like "/<parent_directory>/<owner>/<repo>"
 		// On Windows, Workdir will be like "\<parent_directory>\<owner>\<repo>"
-		Workdir:        filepath.FromSlash(filepath.Clean(fmt.Sprintf("/%s/%s", r.cfg.Container.WorkdirParent, preset.Repository))),
+		Workdir:        filepath.FromSlash(filepath.Clean(fmt.Sprintf("/%s/%s", workdirParent, preset.Repository))),
 		BindWorkdir:    false,
 		ActionCacheDir: filepath.FromSlash(r.cfg.Host.WorkdirParent),
 
@@ -379,6 +384,11 @@ func (r *Runner) run(ctx context.Context, task *runnerv1.Task, reporter *report.
 		InsecureSkipTLS:            r.cfg.Runner.Insecure,
 		Inputs:                     inputs,
 		ServerVersion:              serverVersion,
+
+		KubernetesNamespace:   r.cfg.Kubernetes.Namespace,
+		KubeConfig:            r.cfg.Kubernetes.KubeConfig,
+		KubernetesPollTimeout: r.cfg.Kubernetes.PollTimeout,
+		KubernetesPodSpecs:    r.buildK8sPodSpecs(),
 	}
 
 	if r.cfg.Log.JobLevel != "" {
@@ -418,4 +428,15 @@ func (r *Runner) Declare(ctx context.Context, labels []string) (*connect.Respons
 
 func (r *Runner) Update(ctx context.Context, labels labels.Labels) {
 	r.labels = labels
+}
+
+// buildK8sPodSpecs maps label names to their podspec file paths for K8s labels.
+func (r *Runner) buildK8sPodSpecs() map[string]string {
+	specs := make(map[string]string)
+	for _, label := range r.labels {
+		if label.Schema == labels.SchemeK8sPod && label.Arg != "" {
+			specs[label.Name] = strings.TrimPrefix(label.Arg, "//")
+		}
+	}
+	return specs
 }

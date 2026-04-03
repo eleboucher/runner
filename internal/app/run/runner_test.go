@@ -1319,3 +1319,37 @@ jobs:
 		runWorkflow(ctx, cancel, workflow, "", "", "")
 	})
 }
+
+func TestBuildK8sPodSpecs(t *testing.T) {
+	t.Run("extracts k8spod labels", func(t *testing.T) {
+		r := &Runner{
+			labels: labels.Labels{
+				{Name: "small", Schema: labels.SchemeK8sPod, Arg: "//config/podspec-small.yaml"},
+				{Name: "gpu", Schema: labels.SchemeK8sPod, Arg: "//config/podspec-gpu.yaml"},
+				{Name: "docker-runner", Schema: labels.SchemeDocker, Arg: labels.ArgDocker},
+			},
+		}
+		specs := r.buildK8sPodSpecs()
+		assert.Equal(t, map[string]string{
+			"small": "config/podspec-small.yaml",
+			"gpu":   "config/podspec-gpu.yaml",
+		}, specs)
+	})
+
+	t.Run("skips non-k8spod labels", func(t *testing.T) {
+		r := &Runner{
+			labels: labels.Labels{
+				{Name: "docker", Schema: labels.SchemeDocker, Arg: labels.ArgDocker},
+				{Name: "host", Schema: labels.SchemeHost},
+			},
+		}
+		specs := r.buildK8sPodSpecs()
+		assert.Empty(t, specs)
+	})
+
+	t.Run("empty labels", func(t *testing.T) {
+		r := &Runner{}
+		specs := r.buildK8sPodSpecs()
+		assert.Empty(t, specs)
+	})
+}

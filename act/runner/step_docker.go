@@ -60,6 +60,10 @@ func (sd *stepDocker) runUsesContainer() common.Executor {
 	step := sd.Step
 
 	return func(ctx context.Context) error {
+		if rc.IsK8sEnv(ctx) {
+			return fmt.Errorf("docker:// step actions are not supported in Kubernetes mode")
+		}
+
 		image := strings.TrimPrefix(step.Uses, "docker://")
 		eval := rc.NewExpressionEvaluator(ctx)
 		cmd, err := shellquote.Split(eval.Interpolate(ctx, step.With["args"]))

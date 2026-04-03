@@ -24,6 +24,11 @@ import (
 // Type assert HostEnvironment implements ExecutionsEnvironment
 var _ ExecutionsEnvironment = &HostEnvironment{}
 
+func TestHostEnvironment_GetK8s(t *testing.T) {
+	e := &HostEnvironment{}
+	assert.False(t, e.GetK8s())
+}
+
 func TestCopyDir(t *testing.T) {
 	dir := t.TempDir()
 	e := &HostEnvironment{

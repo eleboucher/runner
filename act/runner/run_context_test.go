@@ -944,3 +944,58 @@ func TestRunContext_ensureRandomName(t *testing.T) {
 	rc.ensureRandomName(t.Context())
 	assert.Equal(t, parent.randomName, rc.randomName)
 }
+
+func TestRunContext_IsK8sEnv(t *testing.T) {
+	newRC := func(t *testing.T, platformPicker func([]string) string, runsOn string) *RunContext {
+		t.Helper()
+		yamlStr := fmt.Sprintf(`
+on: push
+jobs:
+  job:
+    runs-on: %s
+    steps:
+      - run: echo ok
+`, runsOn)
+		workflow, err := model.ReadWorkflow(strings.NewReader(yamlStr), true)
+		require.NoError(t, err)
+		rc := &RunContext{
+			Config: &Config{
+				PlatformPicker: platformPicker,
+			},
+			Run: &model.Run{
+				JobID:    "job",
+				Workflow: workflow,
+			},
+			Env: map[string]string{},
+		}
+		rc.ExprEval = rc.NewExpressionEvaluator(t.Context())
+		return rc
+	}
+
+	t.Run("k8spod platform returns true", func(t *testing.T) {
+		picker := func(labels []string) string {
+			if slices.Contains(labels, "k8s-runner") {
+				return "k8spod"
+			}
+			return ""
+		}
+		rc := newRC(t, picker, "k8s-runner")
+		assert.True(t, rc.IsK8sEnv(t.Context()))
+	})
+
+	t.Run("docker platform returns false", func(t *testing.T) {
+		picker := func(labels []string) string {
+			return "node:22-bookworm"
+		}
+		rc := newRC(t, picker, "ubuntu-latest")
+		assert.False(t, rc.IsK8sEnv(t.Context()))
+	})
+
+	t.Run("host platform returns false", func(t *testing.T) {
+		picker := func(labels []string) string {
+			return "-self-hosted"
+		}
+		rc := newRC(t, picker, "self-hosted")
+		assert.False(t, rc.IsK8sEnv(t.Context()))
+	})
+}

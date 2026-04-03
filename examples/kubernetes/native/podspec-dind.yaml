@@ -1,0 +1,67 @@
+# Podspec with a Docker-in-Docker sidecar.
+# Use this when workflows need `docker build`, `docker push`, or `docker://` actions.
+#
+# The DinD daemon runs as a privileged sidecar sharing TLS certs via an emptyDir.
+# The main container connects to it over localhost:2376 with TLS.
+#
+# WARNING: The DinD container requires `privileged: true`.
+#
+# Usage in runner config:
+#   dind:k8spod:///config/podspec-dind.yaml
+
+containers:
+  - name: main
+    image: node:22-bookworm
+    env:
+      - name: DOCKER_HOST
+        value: tcp://localhost:2376
+      - name: DOCKER_TLS_VERIFY
+        value: "1"
+      - name: DOCKER_CERT_PATH
+        value: /certs/client
+    volumeMounts:
+      - name: shared
+        mountPath: /shared
+      - name: docker-certs
+        mountPath: /certs/client
+        readOnly: true
+    resources:
+      requests:
+        cpu: "500m"
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+
+  - name: docker
+    image: docker:28-dind
+    env:
+      - name: DOCKER_TLS_CERTDIR
+        value: /certs
+    securityContext:
+      privileged: true
+    volumeMounts:
+      - name: shared
+        mountPath: /shared
+      - name: docker-certs
+        mountPath: /certs
+      - name: docker-data
+        mountPath: /var/lib/docker
+    resources:
+      requests:
+        cpu: "500m"
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+
+volumes:
+  - name: shared
+    emptyDir:
+      sizeLimit: 10Gi
+  - name: docker-certs
+    emptyDir: {}
+  - name: docker-data
+    emptyDir: {}
+
+restartPolicy: Never

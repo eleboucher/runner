@@ -1,0 +1,34 @@
+# Example runner configuration for the K8s native backend.
+# The runner itself can run as a pod (see runner-deploy.yaml) or on a host.
+
+log:
+  level: info
+
+runner:
+  capacity: 4
+  timeout: 3h
+  labels:
+    - ubuntu-latest:k8spod:///config/podspec-default.yaml
+    - dind:k8spod:///config/podspec-dind.yaml
+
+kubernetes:
+  namespace: forgejo-runner
+  # kubeconfig: ""          # empty = in-cluster (default when running as a pod)
+  poll_timeout: 10m
+
+container:
+  # Not used by the K8s backend, but required to skip Docker socket checks.
+  docker_host: "-"
+
+cache:
+  enabled: false
+
+server:
+  connections:
+    forgejo:
+      url: https://my-forgejo.example.com
+      uuid: 00000000-0000-0000-0000-000000000000  # from runner registration
+      token: your-runner-token-here
+      labels:
+        - ubuntu-latest:k8spod:///config/podspec-default.yaml
+        - dind:k8spod:///config/podspec-dind.yaml
