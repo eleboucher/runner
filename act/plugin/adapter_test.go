@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -36,10 +38,6 @@ type mockPluginServer struct {
 	copyInDest    string
 	copyOutData   []byte
 	updateEnvResp map[string]string
-}
-
-func (s *mockPluginServer) Ping(_ context.Context, _ *pluginv1.PingRequest) (*pluginv1.PingResponse, error) {
-	return &pluginv1.PingResponse{}, nil
 }
 
 func (s *mockPluginServer) Capabilities(_ context.Context, _ *pluginv1.CapabilitiesRequest) (*pluginv1.CapabilitiesResponse, error) {
@@ -140,6 +138,10 @@ func startMockServer(t *testing.T) (*mockPluginServer, *grpc.ClientConn) {
 		execStdout: "hello\n",
 	}
 	pluginv1.RegisterBackendPluginServer(srv, mock)
+
+	healthSrv := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(srv, healthSrv)
+	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	go func() {
 		_ = srv.Serve(lis)
@@ -412,13 +414,15 @@ func TestPluginEnvironment_NoOpMethods(t *testing.T) {
 	require.NoError(t, env.UpdateFromImageEnv(&envMap)(t.Context()))
 }
 
-func TestClient_PingAndCapabilities(t *testing.T) {
+func TestClient_HealthCheckAndCapabilities(t *testing.T) {
 	_, conn := startMockServer(t)
-	rpc := pluginv1.NewBackendPluginClient(conn)
 
-	_, err := rpc.Ping(t.Context(), &pluginv1.PingRequest{})
+	healthClient := grpc_health_v1.NewHealthClient(conn)
+	resp, err := healthClient.Check(t.Context(), &grpc_health_v1.HealthCheckRequest{})
 	require.NoError(t, err)
+	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.GetStatus())
 
+	rpc := pluginv1.NewBackendPluginClient(conn)
 	caps, err := rpc.Capabilities(t.Context(), &pluginv1.CapabilitiesRequest{})
 	require.NoError(t, err)
 	assert.Equal(t, "test-backend", caps.Name)

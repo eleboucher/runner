@@ -10,6 +10,7 @@ import (
 	pluginv1 "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type Client struct {
@@ -37,9 +38,10 @@ func NewClient(ctx context.Context, address string) (*Client, error) {
 
 	rpc := pluginv1.NewBackendPluginClient(conn)
 
-	if _, err := rpc.Ping(ctx, &pluginv1.PingRequest{}); err != nil {
+	healthClient := grpc_health_v1.NewHealthClient(conn)
+	if _, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{}); err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("ping plugin at %s: %w", address, err)
+		return nil, fmt.Errorf("health check plugin at %s: %w", address, err)
 	}
 
 	caps, err := rpc.Capabilities(ctx, &pluginv1.CapabilitiesRequest{})

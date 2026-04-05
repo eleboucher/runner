@@ -19,7 +19,6 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BackendPlugin_Ping_FullMethodName         = "/plugin.v1.BackendPlugin/Ping"
 	BackendPlugin_Capabilities_FullMethodName = "/plugin.v1.BackendPlugin/Capabilities"
 	BackendPlugin_Create_FullMethodName       = "/plugin.v1.BackendPlugin/Create"
 	BackendPlugin_Start_FullMethodName        = "/plugin.v1.BackendPlugin/Start"
@@ -40,8 +39,6 @@ const (
 // The runner acts as a client, connecting to an already-running plugin server.
 // The plugin server is responsible for managing concurrent environments.
 type BackendPluginClient interface {
-	// Ping verifies the plugin server is alive.
-	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 	// Capabilities returns the backend's name, filesystem layout, and feature flags.
 	Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*CapabilitiesResponse, error)
 	// Create provisions a new execution environment.
@@ -71,16 +68,6 @@ type backendPluginClient struct {
 
 func NewBackendPluginClient(cc grpc.ClientConnInterface) BackendPluginClient {
 	return &backendPluginClient{cc}
-}
-
-func (c *backendPluginClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(PingResponse)
-	err := c.cc.Invoke(ctx, BackendPlugin_Ping_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *backendPluginClient) Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*CapabilitiesResponse, error) {
@@ -212,8 +199,6 @@ func (c *backendPluginClient) Remove(ctx context.Context, in *RemoveRequest, opt
 // The runner acts as a client, connecting to an already-running plugin server.
 // The plugin server is responsible for managing concurrent environments.
 type BackendPluginServer interface {
-	// Ping verifies the plugin server is alive.
-	Ping(context.Context, *PingRequest) (*PingResponse, error)
 	// Capabilities returns the backend's name, filesystem layout, and feature flags.
 	Capabilities(context.Context, *CapabilitiesRequest) (*CapabilitiesResponse, error)
 	// Create provisions a new execution environment.
@@ -245,9 +230,6 @@ type BackendPluginServer interface {
 // pointer dereference when methods are called.
 type UnimplementedBackendPluginServer struct{}
 
-func (UnimplementedBackendPluginServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
-}
 func (UnimplementedBackendPluginServer) Capabilities(context.Context, *CapabilitiesRequest) (*CapabilitiesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Capabilities not implemented")
 }
@@ -297,24 +279,6 @@ func RegisterBackendPluginServer(s grpc.ServiceRegistrar, srv BackendPluginServe
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&BackendPlugin_ServiceDesc, srv)
-}
-
-func _BackendPlugin_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PingRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BackendPluginServer).Ping(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BackendPlugin_Ping_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BackendPluginServer).Ping(ctx, req.(*PingRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _BackendPlugin_Capabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -479,10 +443,6 @@ var BackendPlugin_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "plugin.v1.BackendPlugin",
 	HandlerType: (*BackendPluginServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "Ping",
-			Handler:    _BackendPlugin_Ping_Handler,
-		},
 		{
 			MethodName: "Capabilities",
 			Handler:    _BackendPlugin_Capabilities_Handler,

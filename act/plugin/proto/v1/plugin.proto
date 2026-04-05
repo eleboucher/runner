@@ -8,9 +8,6 @@ option go_package = "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1;plu
 // The runner acts as a client, connecting to an already-running plugin server.
 // The plugin server is responsible for managing concurrent environments.
 service BackendPlugin {
-  // Ping verifies the plugin server is alive.
-  rpc Ping(PingRequest) returns (PingResponse);
-
   // Capabilities returns the backend's name, filesystem layout, and feature flags.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);
 
@@ -42,10 +39,6 @@ service BackendPlugin {
   // Remove tears down the environment and releases all resources.
   rpc Remove(RemoveRequest) returns (RemoveResponse);
 }
-
-
-message PingRequest {}
-message PingResponse {}
 
 
 message CapabilitiesRequest {}

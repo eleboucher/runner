@@ -64,79 +64,7 @@ func (x ExecOutput_Stream) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ExecOutput_Stream.Descriptor instead.
 func (ExecOutput_Stream) EnumDescriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{10, 0}
-}
-
-type PingRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PingRequest) Reset() {
-	*x = PingRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PingRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PingRequest) ProtoMessage() {}
-
-func (x *PingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PingRequest.ProtoReflect.Descriptor instead.
-func (*PingRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{0}
-}
-
-type PingResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PingResponse) Reset() {
-	*x = PingResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PingResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PingResponse) ProtoMessage() {}
-
-func (x *PingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PingResponse.ProtoReflect.Descriptor instead.
-func (*PingResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{1}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{8, 0}
 }
 
 type CapabilitiesRequest struct {
@@ -147,7 +75,7 @@ type CapabilitiesRequest struct {
 
 func (x *CapabilitiesRequest) Reset() {
 	*x = CapabilitiesRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[2]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -159,7 +87,7 @@ func (x *CapabilitiesRequest) String() string {
 func (*CapabilitiesRequest) ProtoMessage() {}
 
 func (x *CapabilitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[2]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -172,7 +100,7 @@ func (x *CapabilitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilitiesRequest.ProtoReflect.Descriptor instead.
 func (*CapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{2}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{0}
 }
 
 type CapabilitiesResponse struct {
@@ -196,7 +124,7 @@ type CapabilitiesResponse struct {
 
 func (x *CapabilitiesResponse) Reset() {
 	*x = CapabilitiesResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[3]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -208,7 +136,7 @@ func (x *CapabilitiesResponse) String() string {
 func (*CapabilitiesResponse) ProtoMessage() {}
 
 func (x *CapabilitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[3]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -221,7 +149,7 @@ func (x *CapabilitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilitiesResponse.ProtoReflect.Descriptor instead.
 func (*CapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{3}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CapabilitiesResponse) GetName() string {
@@ -327,7 +255,7 @@ type ServiceContainer struct {
 
 func (x *ServiceContainer) Reset() {
 	*x = ServiceContainer{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[4]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -339,7 +267,7 @@ func (x *ServiceContainer) String() string {
 func (*ServiceContainer) ProtoMessage() {}
 
 func (x *ServiceContainer) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[4]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -352,7 +280,7 @@ func (x *ServiceContainer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceContainer.ProtoReflect.Descriptor instead.
 func (*ServiceContainer) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{4}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ServiceContainer) GetName() string {
@@ -399,7 +327,7 @@ type CreateRequest struct {
 
 func (x *CreateRequest) Reset() {
 	*x = CreateRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[5]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -411,7 +339,7 @@ func (x *CreateRequest) String() string {
 func (*CreateRequest) ProtoMessage() {}
 
 func (x *CreateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[5]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -424,7 +352,7 @@ func (x *CreateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRequest.ProtoReflect.Descriptor instead.
 func (*CreateRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{5}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CreateRequest) GetImage() string {
@@ -492,7 +420,7 @@ type CreateResponse struct {
 
 func (x *CreateResponse) Reset() {
 	*x = CreateResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[6]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -504,7 +432,7 @@ func (x *CreateResponse) String() string {
 func (*CreateResponse) ProtoMessage() {}
 
 func (x *CreateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[6]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -517,7 +445,7 @@ func (x *CreateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResponse.ProtoReflect.Descriptor instead.
 func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{6}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateResponse) GetEnvironmentId() string {
@@ -536,7 +464,7 @@ type StartRequest struct {
 
 func (x *StartRequest) Reset() {
 	*x = StartRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[7]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -548,7 +476,7 @@ func (x *StartRequest) String() string {
 func (*StartRequest) ProtoMessage() {}
 
 func (x *StartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[7]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -561,7 +489,7 @@ func (x *StartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRequest.ProtoReflect.Descriptor instead.
 func (*StartRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{7}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StartRequest) GetEnvironmentId() string {
@@ -579,7 +507,7 @@ type StartResponse struct {
 
 func (x *StartResponse) Reset() {
 	*x = StartResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[8]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +519,7 @@ func (x *StartResponse) String() string {
 func (*StartResponse) ProtoMessage() {}
 
 func (x *StartResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[8]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,7 +532,7 @@ func (x *StartResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartResponse.ProtoReflect.Descriptor instead.
 func (*StartResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{8}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{6}
 }
 
 type ExecRequest struct {
@@ -620,7 +548,7 @@ type ExecRequest struct {
 
 func (x *ExecRequest) Reset() {
 	*x = ExecRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[9]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -632,7 +560,7 @@ func (x *ExecRequest) String() string {
 func (*ExecRequest) ProtoMessage() {}
 
 func (x *ExecRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[9]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -645,7 +573,7 @@ func (x *ExecRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecRequest.ProtoReflect.Descriptor instead.
 func (*ExecRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{9}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ExecRequest) GetEnvironmentId() string {
@@ -696,7 +624,7 @@ type ExecOutput struct {
 
 func (x *ExecOutput) Reset() {
 	*x = ExecOutput{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[10]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -708,7 +636,7 @@ func (x *ExecOutput) String() string {
 func (*ExecOutput) ProtoMessage() {}
 
 func (x *ExecOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[10]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -721,7 +649,7 @@ func (x *ExecOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecOutput.ProtoReflect.Descriptor instead.
 func (*ExecOutput) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{10}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ExecOutput) GetStream() ExecOutput_Stream {
@@ -770,7 +698,7 @@ type CopyInChunk struct {
 
 func (x *CopyInChunk) Reset() {
 	*x = CopyInChunk{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[11]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -782,7 +710,7 @@ func (x *CopyInChunk) String() string {
 func (*CopyInChunk) ProtoMessage() {}
 
 func (x *CopyInChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[11]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -795,7 +723,7 @@ func (x *CopyInChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyInChunk.ProtoReflect.Descriptor instead.
 func (*CopyInChunk) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{11}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CopyInChunk) GetEnvironmentId() string {
@@ -827,7 +755,7 @@ type CopyInResponse struct {
 
 func (x *CopyInResponse) Reset() {
 	*x = CopyInResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[12]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +767,7 @@ func (x *CopyInResponse) String() string {
 func (*CopyInResponse) ProtoMessage() {}
 
 func (x *CopyInResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[12]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +780,7 @@ func (x *CopyInResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyInResponse.ProtoReflect.Descriptor instead.
 func (*CopyInResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{12}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{10}
 }
 
 type CopyLocalRequest struct {
@@ -866,7 +794,7 @@ type CopyLocalRequest struct {
 
 func (x *CopyLocalRequest) Reset() {
 	*x = CopyLocalRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[13]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -878,7 +806,7 @@ func (x *CopyLocalRequest) String() string {
 func (*CopyLocalRequest) ProtoMessage() {}
 
 func (x *CopyLocalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[13]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -891,7 +819,7 @@ func (x *CopyLocalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyLocalRequest.ProtoReflect.Descriptor instead.
 func (*CopyLocalRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{13}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CopyLocalRequest) GetEnvironmentId() string {
@@ -923,7 +851,7 @@ type CopyLocalResponse struct {
 
 func (x *CopyLocalResponse) Reset() {
 	*x = CopyLocalResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[14]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -935,7 +863,7 @@ func (x *CopyLocalResponse) String() string {
 func (*CopyLocalResponse) ProtoMessage() {}
 
 func (x *CopyLocalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[14]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -948,7 +876,7 @@ func (x *CopyLocalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyLocalResponse.ProtoReflect.Descriptor instead.
 func (*CopyLocalResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{14}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{12}
 }
 
 type CopyOutRequest struct {
@@ -961,7 +889,7 @@ type CopyOutRequest struct {
 
 func (x *CopyOutRequest) Reset() {
 	*x = CopyOutRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[15]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -973,7 +901,7 @@ func (x *CopyOutRequest) String() string {
 func (*CopyOutRequest) ProtoMessage() {}
 
 func (x *CopyOutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[15]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -986,7 +914,7 @@ func (x *CopyOutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyOutRequest.ProtoReflect.Descriptor instead.
 func (*CopyOutRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{15}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CopyOutRequest) GetEnvironmentId() string {
@@ -1012,7 +940,7 @@ type CopyOutChunk struct {
 
 func (x *CopyOutChunk) Reset() {
 	*x = CopyOutChunk{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[16]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +952,7 @@ func (x *CopyOutChunk) String() string {
 func (*CopyOutChunk) ProtoMessage() {}
 
 func (x *CopyOutChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[16]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +965,7 @@ func (x *CopyOutChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyOutChunk.ProtoReflect.Descriptor instead.
 func (*CopyOutChunk) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{16}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CopyOutChunk) GetData() []byte {
@@ -1058,7 +986,7 @@ type UpdateEnvRequest struct {
 
 func (x *UpdateEnvRequest) Reset() {
 	*x = UpdateEnvRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[17]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1070,7 +998,7 @@ func (x *UpdateEnvRequest) String() string {
 func (*UpdateEnvRequest) ProtoMessage() {}
 
 func (x *UpdateEnvRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[17]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1083,7 +1011,7 @@ func (x *UpdateEnvRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateEnvRequest.ProtoReflect.Descriptor instead.
 func (*UpdateEnvRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{17}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdateEnvRequest) GetEnvironmentId() string {
@@ -1116,7 +1044,7 @@ type UpdateEnvResponse struct {
 
 func (x *UpdateEnvResponse) Reset() {
 	*x = UpdateEnvResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[18]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1128,7 +1056,7 @@ func (x *UpdateEnvResponse) String() string {
 func (*UpdateEnvResponse) ProtoMessage() {}
 
 func (x *UpdateEnvResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[18]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1141,7 +1069,7 @@ func (x *UpdateEnvResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateEnvResponse.ProtoReflect.Descriptor instead.
 func (*UpdateEnvResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{18}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateEnvResponse) GetUpdatedEnv() map[string]string {
@@ -1160,7 +1088,7 @@ type IsHealthyRequest struct {
 
 func (x *IsHealthyRequest) Reset() {
 	*x = IsHealthyRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[19]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1172,7 +1100,7 @@ func (x *IsHealthyRequest) String() string {
 func (*IsHealthyRequest) ProtoMessage() {}
 
 func (x *IsHealthyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[19]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1185,7 +1113,7 @@ func (x *IsHealthyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsHealthyRequest.ProtoReflect.Descriptor instead.
 func (*IsHealthyRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{19}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *IsHealthyRequest) GetEnvironmentId() string {
@@ -1204,7 +1132,7 @@ type IsHealthyResponse struct {
 
 func (x *IsHealthyResponse) Reset() {
 	*x = IsHealthyResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[20]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1216,7 +1144,7 @@ func (x *IsHealthyResponse) String() string {
 func (*IsHealthyResponse) ProtoMessage() {}
 
 func (x *IsHealthyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[20]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1229,7 +1157,7 @@ func (x *IsHealthyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsHealthyResponse.ProtoReflect.Descriptor instead.
 func (*IsHealthyResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{20}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *IsHealthyResponse) GetWaitNanos() int64 {
@@ -1248,7 +1176,7 @@ type RemoveRequest struct {
 
 func (x *RemoveRequest) Reset() {
 	*x = RemoveRequest{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[21]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1260,7 +1188,7 @@ func (x *RemoveRequest) String() string {
 func (*RemoveRequest) ProtoMessage() {}
 
 func (x *RemoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[21]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1273,7 +1201,7 @@ func (x *RemoveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveRequest.ProtoReflect.Descriptor instead.
 func (*RemoveRequest) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{21}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RemoveRequest) GetEnvironmentId() string {
@@ -1291,7 +1219,7 @@ type RemoveResponse struct {
 
 func (x *RemoveResponse) Reset() {
 	*x = RemoveResponse{}
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[22]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1303,7 +1231,7 @@ func (x *RemoveResponse) String() string {
 func (*RemoveResponse) ProtoMessage() {}
 
 func (x *RemoveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[22]
+	mi := &file_act_plugin_proto_v1_plugin_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1316,16 +1244,14 @@ func (x *RemoveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveResponse.ProtoReflect.Descriptor instead.
 func (*RemoveResponse) Descriptor() ([]byte, []int) {
-	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{22}
+	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{20}
 }
 
 var File_act_plugin_proto_v1_plugin_proto protoreflect.FileDescriptor
 
 const file_act_plugin_proto_v1_plugin_proto_rawDesc = "" +
 	"\n" +
-	" act/plugin/proto/v1/plugin.proto\x12\tplugin.v1\"\r\n" +
-	"\vPingRequest\"\x0e\n" +
-	"\fPingResponse\"\x15\n" +
+	" act/plugin/proto/v1/plugin.proto\x12\tplugin.v1\"\x15\n" +
 	"\x13CapabilitiesRequest\"\xd0\x05\n" +
 	"\x14CapabilitiesResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
@@ -1428,9 +1354,8 @@ const file_act_plugin_proto_v1_plugin_proto_rawDesc = "" +
 	"wait_nanos\x18\x01 \x01(\x03R\twaitNanos\"6\n" +
 	"\rRemoveRequest\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\x10\n" +
-	"\x0eRemoveResponse2\xe4\x05\n" +
-	"\rBackendPlugin\x127\n" +
-	"\x04Ping\x12\x16.plugin.v1.PingRequest\x1a\x17.plugin.v1.PingResponse\x12O\n" +
+	"\x0eRemoveResponse2\xab\x05\n" +
+	"\rBackendPlugin\x12O\n" +
 	"\fCapabilities\x12\x1e.plugin.v1.CapabilitiesRequest\x1a\x1f.plugin.v1.CapabilitiesResponse\x12=\n" +
 	"\x06Create\x12\x18.plugin.v1.CreateRequest\x1a\x19.plugin.v1.CreateResponse\x12:\n" +
 	"\x05Start\x12\x17.plugin.v1.StartRequest\x1a\x18.plugin.v1.StartResponse\x127\n" +
@@ -1455,72 +1380,68 @@ func file_act_plugin_proto_v1_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_act_plugin_proto_v1_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_act_plugin_proto_v1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_act_plugin_proto_v1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_act_plugin_proto_v1_plugin_proto_goTypes = []any{
 	(ExecOutput_Stream)(0),       // 0: plugin.v1.ExecOutput.Stream
-	(*PingRequest)(nil),          // 1: plugin.v1.PingRequest
-	(*PingResponse)(nil),         // 2: plugin.v1.PingResponse
-	(*CapabilitiesRequest)(nil),  // 3: plugin.v1.CapabilitiesRequest
-	(*CapabilitiesResponse)(nil), // 4: plugin.v1.CapabilitiesResponse
-	(*ServiceContainer)(nil),     // 5: plugin.v1.ServiceContainer
-	(*CreateRequest)(nil),        // 6: plugin.v1.CreateRequest
-	(*CreateResponse)(nil),       // 7: plugin.v1.CreateResponse
-	(*StartRequest)(nil),         // 8: plugin.v1.StartRequest
-	(*StartResponse)(nil),        // 9: plugin.v1.StartResponse
-	(*ExecRequest)(nil),          // 10: plugin.v1.ExecRequest
-	(*ExecOutput)(nil),           // 11: plugin.v1.ExecOutput
-	(*CopyInChunk)(nil),          // 12: plugin.v1.CopyInChunk
-	(*CopyInResponse)(nil),       // 13: plugin.v1.CopyInResponse
-	(*CopyLocalRequest)(nil),     // 14: plugin.v1.CopyLocalRequest
-	(*CopyLocalResponse)(nil),    // 15: plugin.v1.CopyLocalResponse
-	(*CopyOutRequest)(nil),       // 16: plugin.v1.CopyOutRequest
-	(*CopyOutChunk)(nil),         // 17: plugin.v1.CopyOutChunk
-	(*UpdateEnvRequest)(nil),     // 18: plugin.v1.UpdateEnvRequest
-	(*UpdateEnvResponse)(nil),    // 19: plugin.v1.UpdateEnvResponse
-	(*IsHealthyRequest)(nil),     // 20: plugin.v1.IsHealthyRequest
-	(*IsHealthyResponse)(nil),    // 21: plugin.v1.IsHealthyResponse
-	(*RemoveRequest)(nil),        // 22: plugin.v1.RemoveRequest
-	(*RemoveResponse)(nil),       // 23: plugin.v1.RemoveResponse
-	nil,                          // 24: plugin.v1.CapabilitiesResponse.RunnerContextEntry
-	nil,                          // 25: plugin.v1.ServiceContainer.EnvEntry
-	nil,                          // 26: plugin.v1.CreateRequest.BackendOptionsEntry
-	nil,                          // 27: plugin.v1.ExecRequest.EnvEntry
-	nil,                          // 28: plugin.v1.UpdateEnvRequest.CurrentEnvEntry
-	nil,                          // 29: plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
+	(*CapabilitiesRequest)(nil),  // 1: plugin.v1.CapabilitiesRequest
+	(*CapabilitiesResponse)(nil), // 2: plugin.v1.CapabilitiesResponse
+	(*ServiceContainer)(nil),     // 3: plugin.v1.ServiceContainer
+	(*CreateRequest)(nil),        // 4: plugin.v1.CreateRequest
+	(*CreateResponse)(nil),       // 5: plugin.v1.CreateResponse
+	(*StartRequest)(nil),         // 6: plugin.v1.StartRequest
+	(*StartResponse)(nil),        // 7: plugin.v1.StartResponse
+	(*ExecRequest)(nil),          // 8: plugin.v1.ExecRequest
+	(*ExecOutput)(nil),           // 9: plugin.v1.ExecOutput
+	(*CopyInChunk)(nil),          // 10: plugin.v1.CopyInChunk
+	(*CopyInResponse)(nil),       // 11: plugin.v1.CopyInResponse
+	(*CopyLocalRequest)(nil),     // 12: plugin.v1.CopyLocalRequest
+	(*CopyLocalResponse)(nil),    // 13: plugin.v1.CopyLocalResponse
+	(*CopyOutRequest)(nil),       // 14: plugin.v1.CopyOutRequest
+	(*CopyOutChunk)(nil),         // 15: plugin.v1.CopyOutChunk
+	(*UpdateEnvRequest)(nil),     // 16: plugin.v1.UpdateEnvRequest
+	(*UpdateEnvResponse)(nil),    // 17: plugin.v1.UpdateEnvResponse
+	(*IsHealthyRequest)(nil),     // 18: plugin.v1.IsHealthyRequest
+	(*IsHealthyResponse)(nil),    // 19: plugin.v1.IsHealthyResponse
+	(*RemoveRequest)(nil),        // 20: plugin.v1.RemoveRequest
+	(*RemoveResponse)(nil),       // 21: plugin.v1.RemoveResponse
+	nil,                          // 22: plugin.v1.CapabilitiesResponse.RunnerContextEntry
+	nil,                          // 23: plugin.v1.ServiceContainer.EnvEntry
+	nil,                          // 24: plugin.v1.CreateRequest.BackendOptionsEntry
+	nil,                          // 25: plugin.v1.ExecRequest.EnvEntry
+	nil,                          // 26: plugin.v1.UpdateEnvRequest.CurrentEnvEntry
+	nil,                          // 27: plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
 }
 var file_act_plugin_proto_v1_plugin_proto_depIdxs = []int32{
-	24, // 0: plugin.v1.CapabilitiesResponse.runner_context:type_name -> plugin.v1.CapabilitiesResponse.RunnerContextEntry
-	25, // 1: plugin.v1.ServiceContainer.env:type_name -> plugin.v1.ServiceContainer.EnvEntry
-	5,  // 2: plugin.v1.CreateRequest.services:type_name -> plugin.v1.ServiceContainer
-	26, // 3: plugin.v1.CreateRequest.backend_options:type_name -> plugin.v1.CreateRequest.BackendOptionsEntry
-	27, // 4: plugin.v1.ExecRequest.env:type_name -> plugin.v1.ExecRequest.EnvEntry
+	22, // 0: plugin.v1.CapabilitiesResponse.runner_context:type_name -> plugin.v1.CapabilitiesResponse.RunnerContextEntry
+	23, // 1: plugin.v1.ServiceContainer.env:type_name -> plugin.v1.ServiceContainer.EnvEntry
+	3,  // 2: plugin.v1.CreateRequest.services:type_name -> plugin.v1.ServiceContainer
+	24, // 3: plugin.v1.CreateRequest.backend_options:type_name -> plugin.v1.CreateRequest.BackendOptionsEntry
+	25, // 4: plugin.v1.ExecRequest.env:type_name -> plugin.v1.ExecRequest.EnvEntry
 	0,  // 5: plugin.v1.ExecOutput.stream:type_name -> plugin.v1.ExecOutput.Stream
-	28, // 6: plugin.v1.UpdateEnvRequest.current_env:type_name -> plugin.v1.UpdateEnvRequest.CurrentEnvEntry
-	29, // 7: plugin.v1.UpdateEnvResponse.updated_env:type_name -> plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
-	1,  // 8: plugin.v1.BackendPlugin.Ping:input_type -> plugin.v1.PingRequest
-	3,  // 9: plugin.v1.BackendPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
-	6,  // 10: plugin.v1.BackendPlugin.Create:input_type -> plugin.v1.CreateRequest
-	8,  // 11: plugin.v1.BackendPlugin.Start:input_type -> plugin.v1.StartRequest
-	10, // 12: plugin.v1.BackendPlugin.Exec:input_type -> plugin.v1.ExecRequest
-	12, // 13: plugin.v1.BackendPlugin.CopyIn:input_type -> plugin.v1.CopyInChunk
-	14, // 14: plugin.v1.BackendPlugin.CopyLocal:input_type -> plugin.v1.CopyLocalRequest
-	16, // 15: plugin.v1.BackendPlugin.CopyOut:input_type -> plugin.v1.CopyOutRequest
-	18, // 16: plugin.v1.BackendPlugin.UpdateEnv:input_type -> plugin.v1.UpdateEnvRequest
-	20, // 17: plugin.v1.BackendPlugin.IsHealthy:input_type -> plugin.v1.IsHealthyRequest
-	22, // 18: plugin.v1.BackendPlugin.Remove:input_type -> plugin.v1.RemoveRequest
-	2,  // 19: plugin.v1.BackendPlugin.Ping:output_type -> plugin.v1.PingResponse
-	4,  // 20: plugin.v1.BackendPlugin.Capabilities:output_type -> plugin.v1.CapabilitiesResponse
-	7,  // 21: plugin.v1.BackendPlugin.Create:output_type -> plugin.v1.CreateResponse
-	9,  // 22: plugin.v1.BackendPlugin.Start:output_type -> plugin.v1.StartResponse
-	11, // 23: plugin.v1.BackendPlugin.Exec:output_type -> plugin.v1.ExecOutput
-	13, // 24: plugin.v1.BackendPlugin.CopyIn:output_type -> plugin.v1.CopyInResponse
-	15, // 25: plugin.v1.BackendPlugin.CopyLocal:output_type -> plugin.v1.CopyLocalResponse
-	17, // 26: plugin.v1.BackendPlugin.CopyOut:output_type -> plugin.v1.CopyOutChunk
-	19, // 27: plugin.v1.BackendPlugin.UpdateEnv:output_type -> plugin.v1.UpdateEnvResponse
-	21, // 28: plugin.v1.BackendPlugin.IsHealthy:output_type -> plugin.v1.IsHealthyResponse
-	23, // 29: plugin.v1.BackendPlugin.Remove:output_type -> plugin.v1.RemoveResponse
-	19, // [19:30] is the sub-list for method output_type
-	8,  // [8:19] is the sub-list for method input_type
+	26, // 6: plugin.v1.UpdateEnvRequest.current_env:type_name -> plugin.v1.UpdateEnvRequest.CurrentEnvEntry
+	27, // 7: plugin.v1.UpdateEnvResponse.updated_env:type_name -> plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
+	1,  // 8: plugin.v1.BackendPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
+	4,  // 9: plugin.v1.BackendPlugin.Create:input_type -> plugin.v1.CreateRequest
+	6,  // 10: plugin.v1.BackendPlugin.Start:input_type -> plugin.v1.StartRequest
+	8,  // 11: plugin.v1.BackendPlugin.Exec:input_type -> plugin.v1.ExecRequest
+	10, // 12: plugin.v1.BackendPlugin.CopyIn:input_type -> plugin.v1.CopyInChunk
+	12, // 13: plugin.v1.BackendPlugin.CopyLocal:input_type -> plugin.v1.CopyLocalRequest
+	14, // 14: plugin.v1.BackendPlugin.CopyOut:input_type -> plugin.v1.CopyOutRequest
+	16, // 15: plugin.v1.BackendPlugin.UpdateEnv:input_type -> plugin.v1.UpdateEnvRequest
+	18, // 16: plugin.v1.BackendPlugin.IsHealthy:input_type -> plugin.v1.IsHealthyRequest
+	20, // 17: plugin.v1.BackendPlugin.Remove:input_type -> plugin.v1.RemoveRequest
+	2,  // 18: plugin.v1.BackendPlugin.Capabilities:output_type -> plugin.v1.CapabilitiesResponse
+	5,  // 19: plugin.v1.BackendPlugin.Create:output_type -> plugin.v1.CreateResponse
+	7,  // 20: plugin.v1.BackendPlugin.Start:output_type -> plugin.v1.StartResponse
+	9,  // 21: plugin.v1.BackendPlugin.Exec:output_type -> plugin.v1.ExecOutput
+	11, // 22: plugin.v1.BackendPlugin.CopyIn:output_type -> plugin.v1.CopyInResponse
+	13, // 23: plugin.v1.BackendPlugin.CopyLocal:output_type -> plugin.v1.CopyLocalResponse
+	15, // 24: plugin.v1.BackendPlugin.CopyOut:output_type -> plugin.v1.CopyOutChunk
+	17, // 25: plugin.v1.BackendPlugin.UpdateEnv:output_type -> plugin.v1.UpdateEnvResponse
+	19, // 26: plugin.v1.BackendPlugin.IsHealthy:output_type -> plugin.v1.IsHealthyResponse
+	21, // 27: plugin.v1.BackendPlugin.Remove:output_type -> plugin.v1.RemoveResponse
+	18, // [18:28] is the sub-list for method output_type
+	8,  // [8:18] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -1537,7 +1458,7 @@ func file_act_plugin_proto_v1_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_act_plugin_proto_v1_plugin_proto_rawDesc), len(file_act_plugin_proto_v1_plugin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   29,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
