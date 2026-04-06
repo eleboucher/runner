@@ -186,7 +186,7 @@ func TestLabels_PickPlatform_Plugin(t *testing.T) {
 			{Name: "k8s-runner", Schema: "myplugin", Arg: "//some-config"},
 		}
 		platform := labels.PickPlatform([]string{"k8s-runner"})
-		assert.Equal(t, "plugin:myplugin://some-config", platform)
+		assert.Equal(t, "myplugin://some-config", platform)
 	})
 
 	t.Run("falls back to docker default when no match", func(t *testing.T) {

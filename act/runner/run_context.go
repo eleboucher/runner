@@ -916,26 +916,22 @@ func (rc *RunContext) startContainer() common.Executor {
 	}
 }
 
-// pluginName extracts the plugin name from a "plugin:<scheme>:<arg>" platform string,
-// or returns "" if the job doesn't target a plugin.
 func (rc *RunContext) pluginName(ctx context.Context) string {
 	image := rc.runsOnImage(ctx)
-	if after, ok := strings.CutPrefix(image, "plugin:"); ok {
-		// after is "<scheme>:<arg>" — the scheme is the plugin name
-		if name, _, ok := strings.Cut(after, ":"); ok {
-			return name
-		}
-		return after
+	name, _, _ := strings.Cut(image, ":")
+	if _, ok := rc.Config.PluginsV2[name]; ok {
+		return name
+	}
+	if _, ok := rc.Config.Plugins[name]; ok {
+		return name
 	}
 	return ""
 }
 
 func (rc *RunContext) pluginLabelArg(ctx context.Context) string {
 	image := rc.runsOnImage(ctx)
-	if after, ok := strings.CutPrefix(image, "plugin:"); ok {
-		if _, arg, ok := strings.Cut(after, ":"); ok {
-			return strings.TrimPrefix(arg, "//")
-		}
+	if _, arg, ok := strings.Cut(image, ":"); ok {
+		return strings.TrimPrefix(arg, "//")
 	}
 	return ""
 }

@@ -113,8 +113,7 @@ func (l Labels) PickPlatform(runsOn []string) string {
 		case SchemeK8sPod:
 			platforms[label.Name] = "k8spod"
 		default:
-			// Plugin schemes: "plugin:<scheme>://<arg>"
-			platforms[label.Name] = "plugin:" + label.Schema + ":" + label.Arg
+			platforms[label.Name] = label.Schema + ":" + label.Arg
 		}
 	}
 	for _, v := range runsOn {
