@@ -25,6 +25,7 @@ type pluginEnvironment struct {
 	input       *container.NewContainerInput
 	envID       string
 	services    []*pluginv1.ServiceContainer
+	imageEnv    map[string]string
 
 	mu     sync.Mutex
 	stdout io.Writer
@@ -130,12 +131,13 @@ func (p *pluginEnvironment) Create(capAdd, capDrop []string) common.Executor {
 
 func (p *pluginEnvironment) Start(_ bool) common.Executor {
 	return func(ctx context.Context) error {
-		_, err := p.client.Start(ctx, &pluginv1.StartRequest{
+		resp, err := p.client.Start(ctx, &pluginv1.StartRequest{
 			EnvironmentId: p.envID,
 		})
 		if err != nil {
 			return fmt.Errorf("plugin start: %w", err)
 		}
+		p.imageEnv = resp.GetImageEnv()
 		return nil
 	}
 }
@@ -349,8 +351,29 @@ func (p *pluginEnvironment) UpdateFromEnv(srcPath string, env *map[string]string
 	}
 }
 
-func (p *pluginEnvironment) UpdateFromImageEnv(_ *map[string]string) common.Executor {
+func (p *pluginEnvironment) UpdateFromImageEnv(env *map[string]string) common.Executor {
 	return func(_ context.Context) error {
+		if p.imageEnv == nil {
+			return nil
+		}
+		envMap := *env
+		pathVar := p.GetPathVariableName()
+		sep := p.caps.GetPathSeparator()
+		if sep == "" {
+			sep = ":"
+		}
+		for k, v := range p.imageEnv {
+			if k == pathVar {
+				if envMap[k] == "" {
+					envMap[k] = v
+				} else {
+					envMap[k] += sep + v
+				}
+			} else if envMap[k] == "" {
+				envMap[k] = v
+			}
+		}
+		*env = envMap
 		return nil
 	}
 }

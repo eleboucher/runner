@@ -87,7 +87,9 @@ message StartRequest {
   string environment_id = 1;
 }
 
-message StartResponse {}
+message StartResponse {
+  map<string, string> image_env = 1;
+}
 
 
 message ExecRequest {

@@ -501,6 +501,7 @@ func (x *StartRequest) GetEnvironmentId() string {
 
 type StartResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ImageEnv      map[string]string      `protobuf:"bytes,1,rep,name=image_env,json=imageEnv,proto3" json:"image_env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -533,6 +534,13 @@ func (x *StartResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use StartResponse.ProtoReflect.Descriptor instead.
 func (*StartResponse) Descriptor() ([]byte, []int) {
 	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *StartResponse) GetImageEnv() map[string]string {
+	if x != nil {
+		return x.ImageEnv
+	}
+	return nil
 }
 
 type ExecRequest struct {
@@ -1295,8 +1303,12 @@ const file_act_plugin_proto_v1_plugin_proto_rawDesc = "" +
 	"\x0eCreateResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"5\n" +
 	"\fStartRequest\x12%\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\x0f\n" +
-	"\rStartResponse\"\xe7\x01\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\x91\x01\n" +
+	"\rStartResponse\x12C\n" +
+	"\timage_env\x18\x01 \x03(\v2&.plugin.v1.StartResponse.ImageEnvEntryR\bimageEnv\x1a;\n" +
+	"\rImageEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe7\x01\n" +
 	"\vExecRequest\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12\x18\n" +
 	"\acommand\x18\x02 \x03(\tR\acommand\x121\n" +
@@ -1380,7 +1392,7 @@ func file_act_plugin_proto_v1_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_act_plugin_proto_v1_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_act_plugin_proto_v1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_act_plugin_proto_v1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_act_plugin_proto_v1_plugin_proto_goTypes = []any{
 	(ExecOutput_Stream)(0),       // 0: plugin.v1.ExecOutput.Stream
 	(*CapabilitiesRequest)(nil),  // 1: plugin.v1.CapabilitiesRequest
@@ -1407,44 +1419,46 @@ var file_act_plugin_proto_v1_plugin_proto_goTypes = []any{
 	nil,                          // 22: plugin.v1.CapabilitiesResponse.RunnerContextEntry
 	nil,                          // 23: plugin.v1.ServiceContainer.EnvEntry
 	nil,                          // 24: plugin.v1.CreateRequest.BackendOptionsEntry
-	nil,                          // 25: plugin.v1.ExecRequest.EnvEntry
-	nil,                          // 26: plugin.v1.UpdateEnvRequest.CurrentEnvEntry
-	nil,                          // 27: plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
+	nil,                          // 25: plugin.v1.StartResponse.ImageEnvEntry
+	nil,                          // 26: plugin.v1.ExecRequest.EnvEntry
+	nil,                          // 27: plugin.v1.UpdateEnvRequest.CurrentEnvEntry
+	nil,                          // 28: plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
 }
 var file_act_plugin_proto_v1_plugin_proto_depIdxs = []int32{
 	22, // 0: plugin.v1.CapabilitiesResponse.runner_context:type_name -> plugin.v1.CapabilitiesResponse.RunnerContextEntry
 	23, // 1: plugin.v1.ServiceContainer.env:type_name -> plugin.v1.ServiceContainer.EnvEntry
 	3,  // 2: plugin.v1.CreateRequest.services:type_name -> plugin.v1.ServiceContainer
 	24, // 3: plugin.v1.CreateRequest.backend_options:type_name -> plugin.v1.CreateRequest.BackendOptionsEntry
-	25, // 4: plugin.v1.ExecRequest.env:type_name -> plugin.v1.ExecRequest.EnvEntry
-	0,  // 5: plugin.v1.ExecOutput.stream:type_name -> plugin.v1.ExecOutput.Stream
-	26, // 6: plugin.v1.UpdateEnvRequest.current_env:type_name -> plugin.v1.UpdateEnvRequest.CurrentEnvEntry
-	27, // 7: plugin.v1.UpdateEnvResponse.updated_env:type_name -> plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
-	1,  // 8: plugin.v1.BackendPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
-	4,  // 9: plugin.v1.BackendPlugin.Create:input_type -> plugin.v1.CreateRequest
-	6,  // 10: plugin.v1.BackendPlugin.Start:input_type -> plugin.v1.StartRequest
-	8,  // 11: plugin.v1.BackendPlugin.Exec:input_type -> plugin.v1.ExecRequest
-	10, // 12: plugin.v1.BackendPlugin.CopyIn:input_type -> plugin.v1.CopyInChunk
-	12, // 13: plugin.v1.BackendPlugin.CopyLocal:input_type -> plugin.v1.CopyLocalRequest
-	14, // 14: plugin.v1.BackendPlugin.CopyOut:input_type -> plugin.v1.CopyOutRequest
-	16, // 15: plugin.v1.BackendPlugin.UpdateEnv:input_type -> plugin.v1.UpdateEnvRequest
-	18, // 16: plugin.v1.BackendPlugin.IsHealthy:input_type -> plugin.v1.IsHealthyRequest
-	20, // 17: plugin.v1.BackendPlugin.Remove:input_type -> plugin.v1.RemoveRequest
-	2,  // 18: plugin.v1.BackendPlugin.Capabilities:output_type -> plugin.v1.CapabilitiesResponse
-	5,  // 19: plugin.v1.BackendPlugin.Create:output_type -> plugin.v1.CreateResponse
-	7,  // 20: plugin.v1.BackendPlugin.Start:output_type -> plugin.v1.StartResponse
-	9,  // 21: plugin.v1.BackendPlugin.Exec:output_type -> plugin.v1.ExecOutput
-	11, // 22: plugin.v1.BackendPlugin.CopyIn:output_type -> plugin.v1.CopyInResponse
-	13, // 23: plugin.v1.BackendPlugin.CopyLocal:output_type -> plugin.v1.CopyLocalResponse
-	15, // 24: plugin.v1.BackendPlugin.CopyOut:output_type -> plugin.v1.CopyOutChunk
-	17, // 25: plugin.v1.BackendPlugin.UpdateEnv:output_type -> plugin.v1.UpdateEnvResponse
-	19, // 26: plugin.v1.BackendPlugin.IsHealthy:output_type -> plugin.v1.IsHealthyResponse
-	21, // 27: plugin.v1.BackendPlugin.Remove:output_type -> plugin.v1.RemoveResponse
-	18, // [18:28] is the sub-list for method output_type
-	8,  // [8:18] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	25, // 4: plugin.v1.StartResponse.image_env:type_name -> plugin.v1.StartResponse.ImageEnvEntry
+	26, // 5: plugin.v1.ExecRequest.env:type_name -> plugin.v1.ExecRequest.EnvEntry
+	0,  // 6: plugin.v1.ExecOutput.stream:type_name -> plugin.v1.ExecOutput.Stream
+	27, // 7: plugin.v1.UpdateEnvRequest.current_env:type_name -> plugin.v1.UpdateEnvRequest.CurrentEnvEntry
+	28, // 8: plugin.v1.UpdateEnvResponse.updated_env:type_name -> plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
+	1,  // 9: plugin.v1.BackendPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
+	4,  // 10: plugin.v1.BackendPlugin.Create:input_type -> plugin.v1.CreateRequest
+	6,  // 11: plugin.v1.BackendPlugin.Start:input_type -> plugin.v1.StartRequest
+	8,  // 12: plugin.v1.BackendPlugin.Exec:input_type -> plugin.v1.ExecRequest
+	10, // 13: plugin.v1.BackendPlugin.CopyIn:input_type -> plugin.v1.CopyInChunk
+	12, // 14: plugin.v1.BackendPlugin.CopyLocal:input_type -> plugin.v1.CopyLocalRequest
+	14, // 15: plugin.v1.BackendPlugin.CopyOut:input_type -> plugin.v1.CopyOutRequest
+	16, // 16: plugin.v1.BackendPlugin.UpdateEnv:input_type -> plugin.v1.UpdateEnvRequest
+	18, // 17: plugin.v1.BackendPlugin.IsHealthy:input_type -> plugin.v1.IsHealthyRequest
+	20, // 18: plugin.v1.BackendPlugin.Remove:input_type -> plugin.v1.RemoveRequest
+	2,  // 19: plugin.v1.BackendPlugin.Capabilities:output_type -> plugin.v1.CapabilitiesResponse
+	5,  // 20: plugin.v1.BackendPlugin.Create:output_type -> plugin.v1.CreateResponse
+	7,  // 21: plugin.v1.BackendPlugin.Start:output_type -> plugin.v1.StartResponse
+	9,  // 22: plugin.v1.BackendPlugin.Exec:output_type -> plugin.v1.ExecOutput
+	11, // 23: plugin.v1.BackendPlugin.CopyIn:output_type -> plugin.v1.CopyInResponse
+	13, // 24: plugin.v1.BackendPlugin.CopyLocal:output_type -> plugin.v1.CopyLocalResponse
+	15, // 25: plugin.v1.BackendPlugin.CopyOut:output_type -> plugin.v1.CopyOutChunk
+	17, // 26: plugin.v1.BackendPlugin.UpdateEnv:output_type -> plugin.v1.UpdateEnvResponse
+	19, // 27: plugin.v1.BackendPlugin.IsHealthy:output_type -> plugin.v1.IsHealthyResponse
+	21, // 28: plugin.v1.BackendPlugin.Remove:output_type -> plugin.v1.RemoveResponse
+	19, // [19:29] is the sub-list for method output_type
+	9,  // [9:19] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_act_plugin_proto_v1_plugin_proto_init() }
@@ -1458,7 +1472,7 @@ func file_act_plugin_proto_v1_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_act_plugin_proto_v1_plugin_proto_rawDesc), len(file_act_plugin_proto_v1_plugin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   27,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

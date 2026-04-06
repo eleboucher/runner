@@ -38,6 +38,7 @@ type mockPluginServer struct {
 	copyInDest    string
 	copyOutData   []byte
 	updateEnvResp map[string]string
+	startImageEnv map[string]string
 }
 
 func (s *mockPluginServer) Capabilities(_ context.Context, _ *pluginv1.CapabilitiesRequest) (*pluginv1.CapabilitiesResponse, error) {
@@ -66,7 +67,7 @@ func (s *mockPluginServer) Create(_ context.Context, req *pluginv1.CreateRequest
 }
 
 func (s *mockPluginServer) Start(_ context.Context, _ *pluginv1.StartRequest) (*pluginv1.StartResponse, error) {
-	return &pluginv1.StartResponse{}, nil
+	return &pluginv1.StartResponse{ImageEnv: s.startImageEnv}, nil
 }
 
 func (s *mockPluginServer) Exec(_ *pluginv1.ExecRequest, stream grpc.ServerStreamingServer[pluginv1.ExecOutput]) error {
@@ -521,4 +522,52 @@ func TestPluginEnvironment_ExecContextCancelled(t *testing.T) {
 	err := env.Exec([]string{"sleep", "10"}, nil, "", "")(ctx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf("%v", context.Canceled))
+}
+
+func TestPluginEnvironment_UpdateFromImageEnv(t *testing.T) {
+	mock, conn := startMockServer(t)
+	mock.startImageEnv = map[string]string{
+		"PATH":    "/custom/bin:/usr/bin",
+		"GOPATH":  "/go",
+		"LANG":    "C.UTF-8",
+	}
+
+	env := newTestEnv(t, conn)
+	require.NoError(t, env.Create(nil, nil)(t.Context()))
+	require.NoError(t, env.Start(false)(t.Context()))
+
+	envMap := map[string]string{"LANG": "en_US.UTF-8"}
+	require.NoError(t, env.UpdateFromImageEnv(&envMap)(t.Context()))
+
+	assert.Equal(t, "/custom/bin:/usr/bin", envMap["PATH"])
+	assert.Equal(t, "/go", envMap["GOPATH"])
+	assert.Equal(t, "en_US.UTF-8", envMap["LANG"]) // existing value preserved
+}
+
+func TestPluginEnvironment_UpdateFromImageEnv_MergesPath(t *testing.T) {
+	mock, conn := startMockServer(t)
+	mock.startImageEnv = map[string]string{
+		"PATH": "/image/bin",
+	}
+
+	env := newTestEnv(t, conn)
+	require.NoError(t, env.Create(nil, nil)(t.Context()))
+	require.NoError(t, env.Start(false)(t.Context()))
+
+	envMap := map[string]string{"PATH": "/existing/bin"}
+	require.NoError(t, env.UpdateFromImageEnv(&envMap)(t.Context()))
+
+	assert.Equal(t, "/existing/bin:/image/bin", envMap["PATH"])
+}
+
+func TestPluginEnvironment_UpdateFromImageEnv_NilImageEnv(t *testing.T) {
+	_, conn := startMockServer(t)
+	env := newTestEnv(t, conn)
+	require.NoError(t, env.Create(nil, nil)(t.Context()))
+	require.NoError(t, env.Start(false)(t.Context()))
+
+	envMap := map[string]string{"FOO": "bar"}
+	require.NoError(t, env.UpdateFromImageEnv(&envMap)(t.Context()))
+
+	assert.Equal(t, map[string]string{"FOO": "bar"}, envMap)
 }

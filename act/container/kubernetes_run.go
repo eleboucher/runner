@@ -308,8 +308,31 @@ func (p *K8sPod) UpdateFromEnv(srcPath string, env *map[string]string) common.Ex
 	return ParseEnvFile(p, srcPath, env).IfNot(common.Dryrun)
 }
 
-func (p *K8sPod) UpdateFromImageEnv(_ *map[string]string) common.Executor {
-	return func(_ context.Context) error {
+func (p *K8sPod) UpdateFromImageEnv(env *map[string]string) common.Executor {
+	return func(ctx context.Context) error {
+		var buf bytes.Buffer
+		oldOut, oldErr := p.ReplaceLogWriter(&buf, io.Discard)
+		defer p.ReplaceLogWriter(oldOut, oldErr)
+
+		if err := p.Exec([]string{"env", "-0"}, nil, "", "")(ctx); err != nil {
+			return nil
+		}
+
+		envMap := *env
+		for _, entry := range strings.Split(buf.String(), "\x00") {
+			if k, v, ok := strings.Cut(entry, "="); ok && k != "" {
+				if k == "PATH" {
+					if envMap[k] == "" {
+						envMap[k] = v
+					} else {
+						envMap[k] += ":" + v
+					}
+				} else if envMap[k] == "" {
+					envMap[k] = v
+				}
+			}
+		}
+		*env = envMap
 		return nil
 	}
 }
