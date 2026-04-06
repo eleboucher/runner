@@ -390,6 +390,7 @@ func (r *Runner) run(ctx context.Context, task *runnerv1.Task, reporter *report.
 		KubernetesPollTimeout: r.cfg.Kubernetes.PollTimeout,
 		KubernetesPodSpecs:    r.buildK8sPodSpecs(),
 		Plugins:               r.buildPluginConfigs(),
+		PluginsV2:             r.buildPluginV2Configs(),
 	}
 
 	if r.cfg.Log.JobLevel != "" {
@@ -451,6 +452,20 @@ func (r *Runner) buildPluginConfigs() map[string]runner.PluginConfig {
 	for name, p := range r.cfg.Plugins {
 		plugins[name] = runner.PluginConfig{
 			Address: p.Address,
+			Options: p.Options,
+		}
+	}
+	return plugins
+}
+
+func (r *Runner) buildPluginV2Configs() map[string]runner.PluginV2Config {
+	if len(r.cfg.PluginsV2) == 0 {
+		return nil
+	}
+	plugins := make(map[string]runner.PluginV2Config, len(r.cfg.PluginsV2))
+	for name, p := range r.cfg.PluginsV2 {
+		plugins[name] = runner.PluginV2Config{
+			Path:    p.Path,
 			Options: p.Options,
 		}
 	}

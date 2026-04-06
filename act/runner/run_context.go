@@ -944,16 +944,22 @@ func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
 	return func(ctx context.Context) error {
 		logger := common.Logger(ctx)
 
-		pluginCfg, ok := rc.Config.Plugins[name]
-		if !ok {
+		var pluginClient *plugin.Client
+		var pluginOpts map[string]string
+		var err error
+		if v2Cfg, ok := rc.Config.PluginsV2[name]; ok {
+			logger.Infof("\U0001f50c Launching plugin %s from %s", name, v2Cfg.Path)
+			pluginClient, err = plugin.NewClientV2(ctx, v2Cfg.Path)
+			pluginOpts = v2Cfg.Options
+		} else if v1Cfg, ok := rc.Config.Plugins[name]; ok {
+			logger.Infof("\U0001f50c Connecting to plugin %s at %s", name, v1Cfg.Address)
+			pluginClient, err = plugin.NewClient(ctx, v1Cfg.Address)
+			pluginOpts = v1Cfg.Options
+		} else {
 			return fmt.Errorf("plugin %q not found in configuration", name)
 		}
-
-		logger.Infof("\U0001f50c Connecting to plugin %s at %s", name, pluginCfg.Address)
-
-		pluginClient, err := plugin.NewClient(ctx, pluginCfg.Address)
 		if err != nil {
-			return fmt.Errorf("connect to plugin %s: %w", name, err)
+			return fmt.Errorf("plugin %s: %w", name, err)
 		}
 
 		rawLogger := logger.WithField("raw_output", true)
@@ -967,7 +973,7 @@ func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
 		})
 
 		opts := make(map[string]string)
-		maps.Copy(opts, pluginCfg.Options)
+		maps.Copy(opts, pluginOpts)
 		if labelArg := rc.pluginLabelArg(ctx); labelArg != "" {
 			opts["label_arg"] = labelArg
 		}

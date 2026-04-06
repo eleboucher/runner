@@ -91,6 +91,11 @@ type Plugin struct {
 	Options map[string]string // passed to the plugin as backend_options
 }
 
+type PluginV2 struct {
+	Path    string            // path to plugin binary (launched via go-plugin)
+	Options map[string]string // passed to the plugin as backend_options
+}
+
 // Server configures connections to Forgejo and their behaviour.
 type Server struct {
 	Connections map[string]*Connection // Connections defines which Forgejo instance(s) Forgejo Runner should connect to. The map's key serves as connection name.
@@ -130,8 +135,9 @@ type Config struct {
 	Container  Container // Container represents the configuration for the container.
 	Host       Host      // Host represents the configuration for the host.
 	Kubernetes Kubernetes
-	Plugins    map[string]Plugin // Plugin name → plugin configuration. Keyed by the plugin label scheme.
-	Server     Server            // Server configures connections to Forgejo and their behaviour.
+	Plugins    map[string]Plugin
+	PluginsV2  map[string]PluginV2
+	Server     Server              // Server configures connections to Forgejo and their behaviour.
 }
 
 // serializedConfiguration is the top-level structure of the on-disk format of the Forgejo Runner configuration.
@@ -142,8 +148,9 @@ type serializedConfiguration struct {
 	Container  serializedContainerSettings  `yaml:"container"` // Container represents the configuration for the container.
 	Host       serializedHostSettings       `yaml:"host"`      // Host represents the configuration for the host.
 	Kubernetes serializedKubernetesSettings          `yaml:"kubernetes"`
-	Plugins    map[string]serializedPluginSettings `yaml:"plugins"`
-	Server     serializedServerSettings            `yaml:"server"` // Server configures connections to Forgejo and their behaviour.
+	Plugins    map[string]serializedPluginSettings   `yaml:"plugins"`
+	PluginsV2  map[string]serializedPluginV2Settings `yaml:"pluginsv2"`
+	Server     serializedServerSettings              `yaml:"server"` // Server configures connections to Forgejo and their behaviour.
 }
 
 func (s *serializedConfiguration) applyTo(config *Config) error {
@@ -172,6 +179,15 @@ func (s *serializedConfiguration) applyTo(config *Config) error {
 				return fmt.Errorf("invalid `plugins.%s` settings: address is required", name)
 			}
 			config.Plugins[name] = Plugin(sp)
+		}
+	}
+	if len(s.PluginsV2) > 0 {
+		config.PluginsV2 = make(map[string]PluginV2, len(s.PluginsV2))
+		for name, sp := range s.PluginsV2 {
+			if sp.Path == "" {
+				return fmt.Errorf("invalid `pluginsv2.%s` settings: path is required", name)
+			}
+			config.PluginsV2[name] = PluginV2(sp)
 		}
 	}
 	if err := s.Server.applyTo(config); err != nil {
@@ -440,6 +456,11 @@ func (s *serializedHostSettings) applyTo(config *Config) error {
 
 type serializedPluginSettings struct {
 	Address string            `yaml:"address"`
+	Options map[string]string `yaml:"options"`
+}
+
+type serializedPluginV2Settings struct {
+	Path    string            `yaml:"path"`
 	Options map[string]string `yaml:"options"`
 }
 

@@ -8,15 +8,17 @@ import (
 
 	"code.forgejo.org/forgejo/runner/v12/act/container"
 	pluginv1 "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1"
+	goplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type Client struct {
-	conn *grpc.ClientConn
-	rpc  pluginv1.BackendPluginClient
-	caps *pluginv1.CapabilitiesResponse
+	conn     *grpc.ClientConn
+	gpClient *goplugin.Client
+	rpc      pluginv1.BackendPluginClient
+	caps     *pluginv1.CapabilitiesResponse
 }
 
 func NewClient(ctx context.Context, address string) (*Client, error) {
@@ -73,5 +75,9 @@ func (c *Client) NewEnvironment(input *container.NewContainerInput, backendOpts 
 }
 
 func (c *Client) Close() error {
+	if c.gpClient != nil {
+		c.gpClient.Kill()
+		return nil
+	}
 	return c.conn.Close()
 }

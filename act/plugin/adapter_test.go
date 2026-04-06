@@ -180,6 +180,7 @@ func newTestEnv(t *testing.T, conn *grpc.ClientConn) *pluginEnvironment {
 	}
 }
 
+
 func TestPluginEnvironment_Capabilities(t *testing.T) {
 	_, conn := startMockServer(t)
 	env := newTestEnv(t, conn)

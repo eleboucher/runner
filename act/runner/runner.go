@@ -80,11 +80,17 @@ type Config struct {
 	KubeConfig            string
 	KubernetesPollTimeout time.Duration
 
-	Plugins map[string]PluginConfig
+	Plugins   map[string]PluginConfig
+	PluginsV2 map[string]PluginV2Config
 }
 
 type PluginConfig struct {
 	Address string
+	Options map[string]string
+}
+
+type PluginV2Config struct {
+	Path    string
 	Options map[string]string
 }
 
