@@ -125,3 +125,13 @@ func TestV2Client_InvalidBinary(t *testing.T) {
 	_, err := NewClientV2(t.Context(), "/nonexistent/plugin/binary")
 	require.Error(t, err)
 }
+
+func TestBuildPluginCmd_WithLogLevel(t *testing.T) {
+	cmd := buildPluginCmd("/some/binary", clientV2Options{logLevel: "debug"})
+	assert.Contains(t, cmd.Env, "FORGEJO_RUNNER_LOG_LEVEL=debug")
+}
+
+func TestBuildPluginCmd_EmptyLogLevelInheritsParentEnv(t *testing.T) {
+	cmd := buildPluginCmd("/some/binary", clientV2Options{})
+	assert.Nil(t, cmd.Env, "expected nil so child inherits parent env")
+}
