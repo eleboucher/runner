@@ -51,7 +51,7 @@ func TestNew(t *testing.T) {
 		home, err := os.UserHomeDir()
 		require.NoError(t, err)
 
-		assert.Equal(t, 6, reflect.TypeOf(Config{}).NumField())
+		assert.Equal(t, 7, reflect.TypeOf(Config{}).NumField())
 		assert.Equal(t, 2, reflect.TypeOf(Log{}).NumField())
 		assert.Equal(t, 11, reflect.TypeOf(Runner{}).NumField())
 		assert.Equal(t, 8, reflect.TypeOf(Cache{}).NumField())
@@ -115,7 +115,7 @@ func TestNew(t *testing.T) {
 		home, err := os.UserHomeDir()
 		require.NoError(t, err)
 
-		assert.Equal(t, 6, reflect.TypeOf(Config{}).NumField())
+		assert.Equal(t, 7, reflect.TypeOf(Config{}).NumField())
 		assert.Equal(t, 2, reflect.TypeOf(Log{}).NumField())
 		assert.Equal(t, 11, reflect.TypeOf(Runner{}).NumField())
 		assert.Equal(t, 8, reflect.TypeOf(Cache{}).NumField())
@@ -301,7 +301,7 @@ server:
 		config, err := New(FromFile(configPath))
 		require.NoError(t, err)
 
-		assert.Equal(t, 6, reflect.TypeOf(Config{}).NumField())
+		assert.Equal(t, 7, reflect.TypeOf(Config{}).NumField())
 		assert.Equal(t, 2, reflect.TypeOf(Log{}).NumField())
 		assert.Equal(t, 11, reflect.TypeOf(Runner{}).NumField())
 		assert.Equal(t, 8, reflect.TypeOf(Cache{}).NumField())
