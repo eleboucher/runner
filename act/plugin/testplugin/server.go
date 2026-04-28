@@ -350,7 +350,7 @@ func (s *Server) IsHealthy(_ context.Context, req *pluginv1.IsHealthyRequest) (*
 	if _, err := s.getEnv(req.GetEnvironmentId()); err != nil {
 		return nil, err
 	}
-	return &pluginv1.IsHealthyResponse{WaitNanos: 0}, nil
+	return &pluginv1.IsHealthyResponse{}, nil
 }
 
 func (s *Server) Remove(_ context.Context, req *pluginv1.RemoveRequest) (*pluginv1.RemoveResponse, error) {

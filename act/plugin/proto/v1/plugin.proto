@@ -2,11 +2,12 @@ syntax = "proto3";
 
 package plugin.v1;
 
+import "google/protobuf/duration.proto";
+
 option go_package = "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1;pluginv1";
 
-// BackendPlugin is the gRPC service that a plugin server must implement.
-// The runner acts as a client, connecting to an already-running plugin server.
-// The plugin server is responsible for managing concurrent environments.
+// BackendPlugin is the gRPC service every plugin server must implement.
+// Plugin servers must also expose the standard grpc.health.v1 service.
 service BackendPlugin {
   // Capabilities returns the backend's name, filesystem layout, and feature flags.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);
@@ -156,7 +157,7 @@ message IsHealthyRequest {
 }
 
 message IsHealthyResponse {
-  int64 wait_nanos = 1;
+  google.protobuf.Duration wait = 1;
 }
 
 

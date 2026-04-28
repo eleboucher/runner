@@ -122,7 +122,7 @@ func (s *mockPluginServer) UpdateEnv(_ context.Context, _ *pluginv1.UpdateEnvReq
 }
 
 func (s *mockPluginServer) IsHealthy(_ context.Context, _ *pluginv1.IsHealthyRequest) (*pluginv1.IsHealthyResponse, error) {
-	return &pluginv1.IsHealthyResponse{WaitNanos: 0}, nil
+	return &pluginv1.IsHealthyResponse{}, nil
 }
 
 func (s *mockPluginServer) Remove(_ context.Context, _ *pluginv1.RemoveRequest) (*pluginv1.RemoveResponse, error) {

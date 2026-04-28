@@ -9,6 +9,7 @@ package pluginv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -1133,7 +1134,7 @@ func (x *IsHealthyRequest) GetEnvironmentId() string {
 
 type IsHealthyResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WaitNanos     int64                  `protobuf:"varint,1,opt,name=wait_nanos,json=waitNanos,proto3" json:"wait_nanos,omitempty"`
+	Wait          *durationpb.Duration   `protobuf:"bytes,1,opt,name=wait,proto3" json:"wait,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1168,11 +1169,11 @@ func (*IsHealthyResponse) Descriptor() ([]byte, []int) {
 	return file_act_plugin_proto_v1_plugin_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *IsHealthyResponse) GetWaitNanos() int64 {
+func (x *IsHealthyResponse) GetWait() *durationpb.Duration {
 	if x != nil {
-		return x.WaitNanos
+		return x.Wait
 	}
-	return 0
+	return nil
 }
 
 type RemoveRequest struct {
@@ -1259,7 +1260,7 @@ var File_act_plugin_proto_v1_plugin_proto protoreflect.FileDescriptor
 
 const file_act_plugin_proto_v1_plugin_proto_rawDesc = "" +
 	"\n" +
-	" act/plugin/proto/v1/plugin.proto\x12\tplugin.v1\"\x15\n" +
+	" act/plugin/proto/v1/plugin.proto\x12\tplugin.v1\x1a\x1egoogle/protobuf/duration.proto\"\x15\n" +
 	"\x13CapabilitiesRequest\"\xd0\x05\n" +
 	"\x14CapabilitiesResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
@@ -1360,10 +1361,9 @@ const file_act_plugin_proto_v1_plugin_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"9\n" +
 	"\x10IsHealthyRequest\x12%\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"2\n" +
-	"\x11IsHealthyResponse\x12\x1d\n" +
-	"\n" +
-	"wait_nanos\x18\x01 \x01(\x03R\twaitNanos\"6\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"B\n" +
+	"\x11IsHealthyResponse\x12-\n" +
+	"\x04wait\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x04wait\"6\n" +
 	"\rRemoveRequest\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\x10\n" +
 	"\x0eRemoveResponse2\xab\x05\n" +
@@ -1423,6 +1423,7 @@ var file_act_plugin_proto_v1_plugin_proto_goTypes = []any{
 	nil,                          // 26: plugin.v1.ExecRequest.EnvEntry
 	nil,                          // 27: plugin.v1.UpdateEnvRequest.CurrentEnvEntry
 	nil,                          // 28: plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
+	(*durationpb.Duration)(nil),  // 29: google.protobuf.Duration
 }
 var file_act_plugin_proto_v1_plugin_proto_depIdxs = []int32{
 	22, // 0: plugin.v1.CapabilitiesResponse.runner_context:type_name -> plugin.v1.CapabilitiesResponse.RunnerContextEntry
@@ -1434,31 +1435,32 @@ var file_act_plugin_proto_v1_plugin_proto_depIdxs = []int32{
 	0,  // 6: plugin.v1.ExecOutput.stream:type_name -> plugin.v1.ExecOutput.Stream
 	27, // 7: plugin.v1.UpdateEnvRequest.current_env:type_name -> plugin.v1.UpdateEnvRequest.CurrentEnvEntry
 	28, // 8: plugin.v1.UpdateEnvResponse.updated_env:type_name -> plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
-	1,  // 9: plugin.v1.BackendPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
-	4,  // 10: plugin.v1.BackendPlugin.Create:input_type -> plugin.v1.CreateRequest
-	6,  // 11: plugin.v1.BackendPlugin.Start:input_type -> plugin.v1.StartRequest
-	8,  // 12: plugin.v1.BackendPlugin.Exec:input_type -> plugin.v1.ExecRequest
-	10, // 13: plugin.v1.BackendPlugin.CopyIn:input_type -> plugin.v1.CopyInChunk
-	12, // 14: plugin.v1.BackendPlugin.CopyLocal:input_type -> plugin.v1.CopyLocalRequest
-	14, // 15: plugin.v1.BackendPlugin.CopyOut:input_type -> plugin.v1.CopyOutRequest
-	16, // 16: plugin.v1.BackendPlugin.UpdateEnv:input_type -> plugin.v1.UpdateEnvRequest
-	18, // 17: plugin.v1.BackendPlugin.IsHealthy:input_type -> plugin.v1.IsHealthyRequest
-	20, // 18: plugin.v1.BackendPlugin.Remove:input_type -> plugin.v1.RemoveRequest
-	2,  // 19: plugin.v1.BackendPlugin.Capabilities:output_type -> plugin.v1.CapabilitiesResponse
-	5,  // 20: plugin.v1.BackendPlugin.Create:output_type -> plugin.v1.CreateResponse
-	7,  // 21: plugin.v1.BackendPlugin.Start:output_type -> plugin.v1.StartResponse
-	9,  // 22: plugin.v1.BackendPlugin.Exec:output_type -> plugin.v1.ExecOutput
-	11, // 23: plugin.v1.BackendPlugin.CopyIn:output_type -> plugin.v1.CopyInResponse
-	13, // 24: plugin.v1.BackendPlugin.CopyLocal:output_type -> plugin.v1.CopyLocalResponse
-	15, // 25: plugin.v1.BackendPlugin.CopyOut:output_type -> plugin.v1.CopyOutChunk
-	17, // 26: plugin.v1.BackendPlugin.UpdateEnv:output_type -> plugin.v1.UpdateEnvResponse
-	19, // 27: plugin.v1.BackendPlugin.IsHealthy:output_type -> plugin.v1.IsHealthyResponse
-	21, // 28: plugin.v1.BackendPlugin.Remove:output_type -> plugin.v1.RemoveResponse
-	19, // [19:29] is the sub-list for method output_type
-	9,  // [9:19] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	29, // 9: plugin.v1.IsHealthyResponse.wait:type_name -> google.protobuf.Duration
+	1,  // 10: plugin.v1.BackendPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
+	4,  // 11: plugin.v1.BackendPlugin.Create:input_type -> plugin.v1.CreateRequest
+	6,  // 12: plugin.v1.BackendPlugin.Start:input_type -> plugin.v1.StartRequest
+	8,  // 13: plugin.v1.BackendPlugin.Exec:input_type -> plugin.v1.ExecRequest
+	10, // 14: plugin.v1.BackendPlugin.CopyIn:input_type -> plugin.v1.CopyInChunk
+	12, // 15: plugin.v1.BackendPlugin.CopyLocal:input_type -> plugin.v1.CopyLocalRequest
+	14, // 16: plugin.v1.BackendPlugin.CopyOut:input_type -> plugin.v1.CopyOutRequest
+	16, // 17: plugin.v1.BackendPlugin.UpdateEnv:input_type -> plugin.v1.UpdateEnvRequest
+	18, // 18: plugin.v1.BackendPlugin.IsHealthy:input_type -> plugin.v1.IsHealthyRequest
+	20, // 19: plugin.v1.BackendPlugin.Remove:input_type -> plugin.v1.RemoveRequest
+	2,  // 20: plugin.v1.BackendPlugin.Capabilities:output_type -> plugin.v1.CapabilitiesResponse
+	5,  // 21: plugin.v1.BackendPlugin.Create:output_type -> plugin.v1.CreateResponse
+	7,  // 22: plugin.v1.BackendPlugin.Start:output_type -> plugin.v1.StartResponse
+	9,  // 23: plugin.v1.BackendPlugin.Exec:output_type -> plugin.v1.ExecOutput
+	11, // 24: plugin.v1.BackendPlugin.CopyIn:output_type -> plugin.v1.CopyInResponse
+	13, // 25: plugin.v1.BackendPlugin.CopyLocal:output_type -> plugin.v1.CopyLocalResponse
+	15, // 26: plugin.v1.BackendPlugin.CopyOut:output_type -> plugin.v1.CopyOutChunk
+	17, // 27: plugin.v1.BackendPlugin.UpdateEnv:output_type -> plugin.v1.UpdateEnvResponse
+	19, // 28: plugin.v1.BackendPlugin.IsHealthy:output_type -> plugin.v1.IsHealthyResponse
+	21, // 29: plugin.v1.BackendPlugin.Remove:output_type -> plugin.v1.RemoveResponse
+	20, // [20:30] is the sub-list for method output_type
+	10, // [10:20] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_act_plugin_proto_v1_plugin_proto_init() }

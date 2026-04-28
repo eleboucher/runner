@@ -284,7 +284,7 @@ func TestIsHealthy(t *testing.T) {
 
 	resp, err := client.IsHealthy(t.Context(), &pluginv1.IsHealthyRequest{EnvironmentId: envID})
 	require.NoError(t, err)
-	assert.Equal(t, int64(0), resp.GetWaitNanos())
+	assert.Zero(t, resp.GetWait().AsDuration())
 }
 
 func TestIsHealthy_NotFound(t *testing.T) {

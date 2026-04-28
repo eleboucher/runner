@@ -385,7 +385,7 @@ func (p *pluginEnvironment) IsHealthy(ctx context.Context) (time.Duration, error
 	if err != nil {
 		return 0, fmt.Errorf("plugin ishealthy: %w", err)
 	}
-	return time.Duration(resp.GetWaitNanos()), nil
+	return resp.GetWait().AsDuration(), nil
 }
 
 func (p *pluginEnvironment) Remove() common.Executor {

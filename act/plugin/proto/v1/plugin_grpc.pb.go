@@ -35,9 +35,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// BackendPlugin is the gRPC service that a plugin server must implement.
-// The runner acts as a client, connecting to an already-running plugin server.
-// The plugin server is responsible for managing concurrent environments.
+// BackendPlugin is the gRPC service every plugin server must implement.
+// Plugin servers must also expose the standard grpc.health.v1 service.
 type BackendPluginClient interface {
 	// Capabilities returns the backend's name, filesystem layout, and feature flags.
 	Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*CapabilitiesResponse, error)
@@ -195,9 +194,8 @@ func (c *backendPluginClient) Remove(ctx context.Context, in *RemoveRequest, opt
 // All implementations must embed UnimplementedBackendPluginServer
 // for forward compatibility.
 //
-// BackendPlugin is the gRPC service that a plugin server must implement.
-// The runner acts as a client, connecting to an already-running plugin server.
-// The plugin server is responsible for managing concurrent environments.
+// BackendPlugin is the gRPC service every plugin server must implement.
+// Plugin servers must also expose the standard grpc.health.v1 service.
 type BackendPluginServer interface {
 	// Capabilities returns the backend's name, filesystem layout, and feature flags.
 	Capabilities(context.Context, *CapabilitiesRequest) (*CapabilitiesResponse, error)
