@@ -322,8 +322,11 @@ type CreateRequest struct {
 	CapDrop        []string               `protobuf:"bytes,6,rep,name=cap_drop,json=capDrop,proto3" json:"cap_drop,omitempty"`
 	Services       []*ServiceContainer    `protobuf:"bytes,7,rep,name=services,proto3" json:"services,omitempty"`
 	BackendOptions map[string]string      `protobuf:"bytes,8,rep,name=backend_options,json=backendOptions,proto3" json:"backend_options,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// force_pull asks the plugin to re-fetch the image. Plugins that cannot
+	// honor it should still succeed using the cached image.
+	ForcePull     bool `protobuf:"varint,9,opt,name=force_pull,json=forcePull,proto3" json:"force_pull,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateRequest) Reset() {
@@ -410,6 +413,13 @@ func (x *CreateRequest) GetBackendOptions() map[string]string {
 		return x.BackendOptions
 	}
 	return nil
+}
+
+func (x *CreateRequest) GetForcePull() bool {
+	if x != nil {
+		return x.ForcePull
+	}
+	return false
 }
 
 type CreateResponse struct {
@@ -696,6 +706,10 @@ func (x *ExecOutput) GetErrorMessage() string {
 	return ""
 }
 
+// CopyInChunk frames the client-streaming CopyIn RPC. The first chunk MUST
+// set environment_id and dest_path; subsequent chunks carry only data.
+// Servers MUST reject environment_id or dest_path on later chunks with
+// codes.InvalidArgument.
 type CopyInChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
@@ -1287,7 +1301,7 @@ const file_act_plugin_proto_v1_plugin_proto_rawDesc = "" +
 	"\x05ports\x18\x04 \x03(\tR\x05ports\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf3\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x92\x03\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05image\x18\x01 \x01(\tR\x05image\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x10\n" +
@@ -1297,7 +1311,9 @@ const file_act_plugin_proto_v1_plugin_proto_rawDesc = "" +
 	"\acap_add\x18\x05 \x03(\tR\x06capAdd\x12\x19\n" +
 	"\bcap_drop\x18\x06 \x03(\tR\acapDrop\x127\n" +
 	"\bservices\x18\a \x03(\v2\x1b.plugin.v1.ServiceContainerR\bservices\x12U\n" +
-	"\x0fbackend_options\x18\b \x03(\v2,.plugin.v1.CreateRequest.BackendOptionsEntryR\x0ebackendOptions\x1aA\n" +
+	"\x0fbackend_options\x18\b \x03(\v2,.plugin.v1.CreateRequest.BackendOptionsEntryR\x0ebackendOptions\x12\x1d\n" +
+	"\n" +
+	"force_pull\x18\t \x01(\bR\tforcePull\x1aA\n" +
 	"\x13BackendOptionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"7\n" +

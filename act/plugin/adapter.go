@@ -27,6 +27,8 @@ type pluginEnvironment struct {
 	envID       string
 	services    []*pluginv1.ServiceContainer
 	imageEnv    map[string]string
+	// Pull is called before Create; capture the flag so Create can forward it.
+	forcePull bool
 
 	// mu guards stdout/stderr swaps against in-flight Exec writes.
 	mu     sync.Mutex
@@ -138,6 +140,7 @@ func (p *pluginEnvironment) Create(capAdd, capDrop []string) common.Executor {
 			CapDrop:        capDrop,
 			Services:       p.services,
 			BackendOptions: p.backendOpts,
+			ForcePull:      p.forcePull,
 		})
 		if err != nil {
 			return fmt.Errorf("plugin create: %w", err)
@@ -160,7 +163,8 @@ func (p *pluginEnvironment) Start(_ bool) common.Executor {
 	}
 }
 
-func (p *pluginEnvironment) Pull(_ bool) common.Executor {
+func (p *pluginEnvironment) Pull(forcePull bool) common.Executor {
+	p.forcePull = forcePull
 	return common.NewInfoExecutor("plugin manages image pull internally")
 }
 
@@ -170,7 +174,11 @@ func (p *pluginEnvironment) ConnectToNetwork(_ string) common.Executor {
 
 func (p *pluginEnvironment) Exec(command []string, env map[string]string, user, workdir string) common.Executor {
 	return func(ctx context.Context) error {
-		stream, err := p.client.Exec(ctx, &pluginv1.ExecRequest{
+		// Cancel on early return so the client-side stream goroutines exit.
+		streamCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		stream, err := p.client.Exec(streamCtx, &pluginv1.ExecRequest{
 			EnvironmentId: p.envID,
 			Command:       command,
 			Env:           env,
@@ -228,6 +236,7 @@ func (p *pluginEnvironment) Copy(destPath string, files ...*container.FileEntry)
 	return func(ctx context.Context) error {
 		// Stream the tar so large payloads do not stay buffered in memory.
 		pr, pw := io.Pipe()
+		defer pr.Close()
 		go func() {
 			tw := tar.NewWriter(pw)
 			for _, f := range files {
@@ -266,6 +275,7 @@ func (p *pluginEnvironment) CopyDir(destPath, srcPath string, _ bool) common.Exe
 		}
 
 		pr, pw := io.Pipe()
+		defer pr.Close()
 		go func() {
 			tw := tar.NewWriter(pw)
 			if err := tw.AddFS(os.DirFS(srcPath)); err != nil {
@@ -292,20 +302,35 @@ func (p *pluginEnvironment) streamCopyIn(ctx context.Context, destPath string, r
 		return fmt.Errorf("plugin copyin: %w", err)
 	}
 
+	// On client-streaming RPCs, Send returns io.EOF once the server has
+	// closed the stream; the real error only surfaces via CloseAndRecv.
+	sendChunk := func(chunk *pluginv1.CopyInChunk) error {
+		if err := stream.Send(chunk); err != nil {
+			if errors.Is(err, io.EOF) {
+				if _, recvErr := stream.CloseAndRecv(); recvErr != nil {
+					return fmt.Errorf("plugin copyin: %w", recvErr)
+				}
+				return fmt.Errorf("plugin copyin: stream closed unexpectedly")
+			}
+			return fmt.Errorf("plugin copyin send: %w", err)
+		}
+		return nil
+	}
+
 	// Send the header unconditionally so empty payloads still convey envID/dest.
-	if err := stream.Send(&pluginv1.CopyInChunk{
+	if err := sendChunk(&pluginv1.CopyInChunk{
 		EnvironmentId: p.envID,
 		DestPath:      destPath,
 	}); err != nil {
-		return fmt.Errorf("plugin copyin send: %w", err)
+		return err
 	}
 
 	buf := make([]byte, copyChunkSize)
 	for {
 		n, readErr := r.Read(buf)
 		if n > 0 {
-			if err := stream.Send(&pluginv1.CopyInChunk{Data: buf[:n]}); err != nil {
-				return fmt.Errorf("plugin copyin send: %w", err)
+			if err := sendChunk(&pluginv1.CopyInChunk{Data: buf[:n]}); err != nil {
+				return err
 			}
 		}
 		if errors.Is(readErr, io.EOF) {

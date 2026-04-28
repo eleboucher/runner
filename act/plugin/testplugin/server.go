@@ -156,7 +156,9 @@ func (s *Server) Exec(req *pluginv1.ExecRequest, stream grpc.ServerStreamingServ
 	} else {
 		wd = resolvePath(env, wd)
 	}
-	os.MkdirAll(wd, 0o755)
+	if err := os.MkdirAll(wd, 0o755); err != nil {
+		return sendExecDone(stream, 1, fmt.Sprintf("create workdir: %v", err))
+	}
 
 	envList := os.Environ()
 	envList = append(envList, env.env...)
@@ -264,7 +266,7 @@ func (s *Server) CopyOut(req *pluginv1.CopyOutRequest, stream grpc.ServerStreami
 
 	if fi.IsDir() {
 		err = filepath.WalkDir(srcPath, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
+			if err != nil {
 				return err
 			}
 			rel, _ := filepath.Rel(srcPath, path)
@@ -272,13 +274,16 @@ func (s *Server) CopyOut(req *pluginv1.CopyOutRequest, stream grpc.ServerStreami
 			if err != nil {
 				return err
 			}
-			hdr := &tar.Header{
-				Name: rel,
-				Mode: int64(info.Mode()),
-				Size: info.Size(),
+			hdr, err := tar.FileInfoHeader(info, "")
+			if err != nil {
+				return err
 			}
+			hdr.Name = rel
 			if err := tw.WriteHeader(hdr); err != nil {
 				return err
+			}
+			if d.IsDir() {
+				return nil
 			}
 			f, err := os.Open(path)
 			if err != nil {
@@ -289,11 +294,11 @@ func (s *Server) CopyOut(req *pluginv1.CopyOutRequest, stream grpc.ServerStreami
 			return err
 		})
 	} else {
-		hdr := &tar.Header{
-			Name: fi.Name(),
-			Mode: int64(fi.Mode()),
-			Size: fi.Size(),
+		hdr, hdrErr := tar.FileInfoHeader(fi, "")
+		if hdrErr != nil {
+			return status.Errorf(codes.Internal, "copyout header: %v", hdrErr)
 		}
+		hdr.Name = fi.Name()
 		if err := tw.WriteHeader(hdr); err != nil {
 			return status.Errorf(codes.Internal, "copyout header: %v", err)
 		}

@@ -77,6 +77,9 @@ message CreateRequest {
   repeated string cap_drop = 6;
   repeated ServiceContainer services = 7;
   map<string, string> backend_options = 8;
+  // force_pull asks the plugin to re-fetch the image. Plugins that cannot
+  // honor it should still succeed using the cached image.
+  bool force_pull = 9;
 }
 
 message CreateResponse {
@@ -114,6 +117,10 @@ message ExecOutput {
 }
 
 
+// CopyInChunk frames the client-streaming CopyIn RPC. The first chunk MUST
+// set environment_id and dest_path; subsequent chunks carry only data.
+// Servers MUST reject environment_id or dest_path on later chunks with
+// codes.InvalidArgument.
 message CopyInChunk {
   string environment_id = 1;
   string dest_path = 2;

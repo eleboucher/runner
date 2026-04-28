@@ -137,16 +137,16 @@ type Config struct {
 	Kubernetes Kubernetes
 	Plugins    map[string]Plugin
 	PluginsV2  map[string]PluginV2
-	Server     Server              // Server configures connections to Forgejo and their behaviour.
+	Server     Server // Server configures connections to Forgejo and their behaviour.
 }
 
 // serializedConfiguration is the top-level structure of the on-disk format of the Forgejo Runner configuration.
 type serializedConfiguration struct {
-	Log        serializedLogSettings        `yaml:"log"`       // Log represents the configuration for logging.
-	Runner     serializedRunnerSettings     `yaml:"runner"`    // Runner represents the configuration for the runner.
-	Cache      serializedCacheSettings      `yaml:"cache"`     // Cache represents the configuration for caching.
-	Container  serializedContainerSettings  `yaml:"container"` // Container represents the configuration for the container.
-	Host       serializedHostSettings       `yaml:"host"`      // Host represents the configuration for the host.
+	Log        serializedLogSettings                 `yaml:"log"`       // Log represents the configuration for logging.
+	Runner     serializedRunnerSettings              `yaml:"runner"`    // Runner represents the configuration for the runner.
+	Cache      serializedCacheSettings               `yaml:"cache"`     // Cache represents the configuration for caching.
+	Container  serializedContainerSettings           `yaml:"container"` // Container represents the configuration for the container.
+	Host       serializedHostSettings                `yaml:"host"`      // Host represents the configuration for the host.
 	Kubernetes serializedKubernetesSettings          `yaml:"kubernetes"`
 	Plugins    map[string]serializedPluginSettings   `yaml:"plugins"`
 	PluginsV2  map[string]serializedPluginV2Settings `yaml:"pluginsv2"`

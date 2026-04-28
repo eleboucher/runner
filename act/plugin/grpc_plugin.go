@@ -12,7 +12,6 @@ import (
 type BackendGRPCPlugin struct {
 	goplugin.Plugin
 	Impl pluginv1.BackendPluginServer // only set on the plugin (server) side
-
 }
 
 func (p *BackendGRPCPlugin) GRPCServer(_ *goplugin.GRPCBroker, s *grpc.Server) error {

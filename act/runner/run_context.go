@@ -1027,6 +1027,7 @@ func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
 		}
 
 		return common.NewPipelineExecutor(
+			env.Pull(rc.Config.ForcePull),
 			env.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
 			env.Start(false),
 			env.Exec([]string{"mkdir", "-p", rc.Config.Workdir}, nil, "", ""),

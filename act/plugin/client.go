@@ -15,18 +15,31 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 )
 
-// defaultDialTimeout applies when the caller's context has no deadline.
-// grpc.NewClient is non-blocking; the first RPC is what actually dials.
+// grpc.NewClient is non-blocking; defaultDialTimeout is applied to the
+// first RPC (health check) when the caller's context has no deadline.
 const defaultDialTimeout = 10 * time.Second
+
+// 32 MiB lifts the stock 4 MiB gRPC cap so plugins can emit larger Exec
+// frames and CopyOut chunks without ResourceExhausted.
+const defaultMaxMessageSize = 32 * 1024 * 1024
+
+const (
+	defaultKeepaliveTime    = 30 * time.Second
+	defaultKeepaliveTimeout = 10 * time.Second
+)
 
 type ClientOption func(*clientOptions)
 
 type clientOptions struct {
-	tlsConfig     *tls.Config
-	allowPlainTCP bool
-	dialTimeout   time.Duration
+	tlsConfig        *tls.Config
+	allowPlainTCP    bool
+	dialTimeout      time.Duration
+	maxMessageSize   int
+	keepaliveTime    time.Duration
+	keepaliveTimeout time.Duration
 }
 
 func WithTLS(cfg *tls.Config) ClientOption {
@@ -42,6 +55,19 @@ func WithDialTimeout(d time.Duration) ClientOption {
 	return func(o *clientOptions) { o.dialTimeout = d }
 }
 
+// WithMaxMessageSize sets the per-call send/recv size limit in bytes.
+func WithMaxMessageSize(bytes int) ClientOption {
+	return func(o *clientOptions) { o.maxMessageSize = bytes }
+}
+
+// WithKeepalive sets the gRPC keepalive ping interval and ack timeout.
+func WithKeepalive(interval, timeout time.Duration) ClientOption {
+	return func(o *clientOptions) {
+		o.keepaliveTime = interval
+		o.keepaliveTimeout = timeout
+	}
+}
+
 type Client struct {
 	conn     *grpc.ClientConn
 	gpClient *goplugin.Client
@@ -51,7 +77,12 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context, address string, options ...ClientOption) (*Client, error) {
-	cfg := clientOptions{dialTimeout: defaultDialTimeout}
+	cfg := clientOptions{
+		dialTimeout:      defaultDialTimeout,
+		maxMessageSize:   defaultMaxMessageSize,
+		keepaliveTime:    defaultKeepaliveTime,
+		keepaliveTimeout: defaultKeepaliveTimeout,
+	}
 	for _, opt := range options {
 		opt(&cfg)
 	}
@@ -69,7 +100,18 @@ func NewClient(ctx context.Context, address string, options ...ClientOption) (*C
 		return nil, err
 	}
 
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds)}
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(cfg.maxMessageSize),
+			grpc.MaxCallSendMsgSize(cfg.maxMessageSize),
+		),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                cfg.keepaliveTime,
+			Timeout:             cfg.keepaliveTimeout,
+			PermitWithoutStream: false,
+		}),
+	}
 	if isUnix {
 		socketPath := strings.TrimPrefix(address, "unix://")
 		opts = append(opts, grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {

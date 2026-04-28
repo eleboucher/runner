@@ -21,7 +21,7 @@ import (
 // Compile-time interface check.
 var (
 	_ ExecutionsEnvironment = &K8sPod{}
-	_ ServiceAdder       = &K8sPod{}
+	_ ServiceAdder          = &K8sPod{}
 )
 
 func newTestK8sPod(t *testing.T, fakeClient *fake.Clientset) *K8sPod {

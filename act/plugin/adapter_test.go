@@ -419,6 +419,25 @@ func TestPluginEnvironment_NoOpMethods(t *testing.T) {
 	require.NoError(t, env.UpdateFromImageEnv(&envMap)(t.Context()))
 }
 
+func TestPluginEnvironment_PullForwardsForcePullToCreate(t *testing.T) {
+	mock, conn := startMockServer(t)
+	env := newTestEnv(t, conn)
+
+	require.NoError(t, env.Pull(true)(t.Context()))
+	require.NoError(t, env.Create(nil, nil)(t.Context()))
+
+	require.NotNil(t, mock.createReq)
+	assert.True(t, mock.createReq.GetForcePull(), "force_pull should propagate from Pull(true) to Create")
+}
+
+func TestPluginEnvironment_DefaultForcePullIsFalse(t *testing.T) {
+	mock, conn := startMockServer(t)
+	env := newTestEnv(t, conn)
+
+	require.NoError(t, env.Create(nil, nil)(t.Context()))
+	assert.False(t, mock.createReq.GetForcePull())
+}
+
 func TestClient_HealthCheckAndCapabilities(t *testing.T) {
 	_, conn := startMockServer(t)
 
