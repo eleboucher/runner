@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/sirupsen/logrus"
 )
 
 // RunContext contains info about current job
@@ -945,11 +946,12 @@ func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
 		var err error
 		if v2Cfg, ok := rc.Config.PluginsV2[name]; ok {
 			logger.Infof("\U0001f50c Launching plugin %s from %s", name, v2Cfg.Path)
-			pluginClient, err = plugin.NewClientV2(ctx, v2Cfg.Path)
+			pluginClient, err = plugin.NewClientV2(ctx, v2Cfg.Path, plugin.WithLogLevel(logrus.GetLevel().String()))
 			pluginOpts = v2Cfg.Options
 		} else if v1Cfg, ok := rc.Config.Plugins[name]; ok {
 			logger.Infof("\U0001f50c Connecting to plugin %s at %s", name, v1Cfg.Address)
-			pluginClient, err = plugin.NewClient(ctx, v1Cfg.Address)
+			// TODO: thread TLS config through PluginConfig.
+			pluginClient, err = plugin.NewClient(ctx, v1Cfg.Address, plugin.WithAllowPlainTCP())
 			pluginOpts = v1Cfg.Options
 		} else {
 			return fmt.Errorf("plugin %q not found in configuration", name)
