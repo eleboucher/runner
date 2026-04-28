@@ -2,8 +2,8 @@ package plugin
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +18,7 @@ import (
 
 const copyChunkSize = 256 * 1024 // 256 KB
 
+// pluginEnvironment is not safe for concurrent use; one goroutine per env.
 type pluginEnvironment struct {
 	client      pluginv1.BackendPluginClient
 	caps        *pluginv1.CapabilitiesResponse
@@ -27,9 +28,23 @@ type pluginEnvironment struct {
 	services    []*pluginv1.ServiceContainer
 	imageEnv    map[string]string
 
+	// mu guards stdout/stderr swaps against in-flight Exec writes.
 	mu     sync.Mutex
 	stdout io.Writer
 	stderr io.Writer
+}
+
+// ExecError carries the remote exit code and optional message from Exec.
+type ExecError struct {
+	ExitCode int32
+	Message  string
+}
+
+func (e *ExecError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("plugin exec: %s (exit code %d)", e.Message, e.ExitCode)
+	}
+	return fmt.Sprintf("plugin exec: exit code %d", e.ExitCode)
 }
 
 var (
@@ -38,6 +53,9 @@ var (
 )
 
 func (p *pluginEnvironment) AddServiceContainerRaw(name, image string, env map[string]string, ports []string) {
+	if !p.caps.GetSupportsServiceContainers() {
+		return
+	}
 	p.services = append(p.services, &pluginv1.ServiceContainer{
 		Name:  name,
 		Image: image,
@@ -163,11 +181,14 @@ func (p *pluginEnvironment) Exec(command []string, env map[string]string, user, 
 			return fmt.Errorf("plugin exec: %w", err)
 		}
 
-		var exitCode int32
-		var errorMessage string
+		var (
+			exitCode     int32
+			errorMessage string
+			done         bool
+		)
 		for {
 			out, err := stream.Recv()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {
@@ -188,15 +209,16 @@ func (p *pluginEnvironment) Exec(command []string, env map[string]string, user, 
 			if out.GetDone() {
 				exitCode = out.GetExitCode()
 				errorMessage = out.GetErrorMessage()
+				done = true
 				break
 			}
 		}
 
-		if exitCode != 0 {
-			if errorMessage != "" {
-				return fmt.Errorf("plugin exec: %s", errorMessage)
-			}
-			return fmt.Errorf("plugin exec: exit code %d", exitCode)
+		if !done {
+			return fmt.Errorf("plugin exec: stream ended before completion signal")
+		}
+		if exitCode != 0 || errorMessage != "" {
+			return &ExecError{ExitCode: exitCode, Message: errorMessage}
 		}
 		return nil
 	}
@@ -204,27 +226,31 @@ func (p *pluginEnvironment) Exec(command []string, env map[string]string, user, 
 
 func (p *pluginEnvironment) Copy(destPath string, files ...*container.FileEntry) common.Executor {
 	return func(ctx context.Context) error {
-		var buf bytes.Buffer
-		tw := tar.NewWriter(&buf)
-
-		for _, f := range files {
-			if err := tw.WriteHeader(&tar.Header{
-				Name: f.Name,
-				Mode: f.Mode,
-				Size: int64(len(f.Body)),
-			}); err != nil {
-				return fmt.Errorf("plugin copy tar header: %w", err)
+		// Stream the tar so large payloads do not stay buffered in memory.
+		pr, pw := io.Pipe()
+		go func() {
+			tw := tar.NewWriter(pw)
+			for _, f := range files {
+				if err := tw.WriteHeader(&tar.Header{
+					Name: f.Name,
+					Mode: f.Mode,
+					Size: int64(len(f.Body)),
+				}); err != nil {
+					pw.CloseWithError(fmt.Errorf("plugin copy tar header: %w", err))
+					return
+				}
+				if _, err := tw.Write([]byte(f.Body)); err != nil {
+					pw.CloseWithError(fmt.Errorf("plugin copy tar write: %w", err))
+					return
+				}
 			}
-			if _, err := tw.Write([]byte(f.Body)); err != nil {
-				return fmt.Errorf("plugin copy tar write: %w", err)
+			if err := tw.Close(); err != nil {
+				pw.CloseWithError(err)
+				return
 			}
-		}
-
-		if err := tw.Close(); err != nil {
-			return err
-		}
-
-		return p.streamCopyIn(ctx, destPath, &buf)
+			pw.Close()
+		}()
+		return p.streamCopyIn(ctx, destPath, pr)
 	}
 }
 
@@ -266,24 +292,23 @@ func (p *pluginEnvironment) streamCopyIn(ctx context.Context, destPath string, r
 		return fmt.Errorf("plugin copyin: %w", err)
 	}
 
+	// Send the header unconditionally so empty payloads still convey envID/dest.
+	if err := stream.Send(&pluginv1.CopyInChunk{
+		EnvironmentId: p.envID,
+		DestPath:      destPath,
+	}); err != nil {
+		return fmt.Errorf("plugin copyin send: %w", err)
+	}
+
 	buf := make([]byte, copyChunkSize)
-	first := true
 	for {
 		n, readErr := r.Read(buf)
 		if n > 0 {
-			chunk := &pluginv1.CopyInChunk{
-				Data: buf[:n],
-			}
-			if first {
-				chunk.EnvironmentId = p.envID
-				chunk.DestPath = destPath
-				first = false
-			}
-			if err := stream.Send(chunk); err != nil {
+			if err := stream.Send(&pluginv1.CopyInChunk{Data: buf[:n]}); err != nil {
 				return fmt.Errorf("plugin copyin send: %w", err)
 			}
 		}
-		if readErr == io.EOF {
+		if errors.Is(readErr, io.EOF) {
 			break
 		}
 		if readErr != nil {
@@ -298,19 +323,22 @@ func (p *pluginEnvironment) streamCopyIn(ctx context.Context, destPath string, r
 }
 
 func (p *pluginEnvironment) GetContainerArchive(ctx context.Context, srcPath string) (io.ReadCloser, error) {
-	stream, err := p.client.CopyOut(ctx, &pluginv1.CopyOutRequest{
+	streamCtx, cancel := context.WithCancel(ctx)
+	stream, err := p.client.CopyOut(streamCtx, &pluginv1.CopyOutRequest{
 		EnvironmentId: p.envID,
 		SrcPath:       srcPath,
 	})
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("plugin copyout: %w", err)
 	}
 
 	pr, pw := io.Pipe()
 	go func() {
+		defer cancel()
 		for {
 			chunk, err := stream.Recv()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				pw.Close()
 				return
 			}
@@ -319,6 +347,7 @@ func (p *pluginEnvironment) GetContainerArchive(ctx context.Context, srcPath str
 				return
 			}
 			if _, err := pw.Write(chunk.GetData()); err != nil {
+				// Reader closed: cancel via defer so stream.Recv unblocks.
 				pw.CloseWithError(err)
 				return
 			}

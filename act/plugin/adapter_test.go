@@ -51,7 +51,7 @@ func (s *mockPluginServer) Capabilities(_ context.Context, _ *pluginv1.Capabilit
 		DefaultPathVariable:       "/usr/bin:/bin",
 		PathSeparator:             ":",
 		SupportsDockerActions:     false,
-		ManagesOwnNetworking:     true,
+		ManagesOwnNetworking:      true,
 		SupportsServiceContainers: true,
 		RunnerContext: map[string]string{
 			"os":   "Linux",
@@ -181,7 +181,6 @@ func newTestEnv(t *testing.T, conn *grpc.ClientConn) *pluginEnvironment {
 	}
 }
 
-
 func TestPluginEnvironment_Capabilities(t *testing.T) {
 	_, conn := startMockServer(t)
 	env := newTestEnv(t, conn)
@@ -309,7 +308,11 @@ func TestPluginEnvironment_ExecErrorMessage(t *testing.T) {
 	err := env.Exec([]string{"nonexistent"}, nil, "", "")(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "command not found")
-	assert.NotContains(t, err.Error(), "exit code")
+
+	var execErr *ExecError
+	require.ErrorAs(t, err, &execErr)
+	assert.Equal(t, int32(127), execErr.ExitCode)
+	assert.Equal(t, "exec: command not found", execErr.Message)
 }
 
 func TestPluginEnvironment_Copy(t *testing.T) {
@@ -527,9 +530,9 @@ func TestPluginEnvironment_ExecContextCancelled(t *testing.T) {
 func TestPluginEnvironment_UpdateFromImageEnv(t *testing.T) {
 	mock, conn := startMockServer(t)
 	mock.startImageEnv = map[string]string{
-		"PATH":    "/custom/bin:/usr/bin",
-		"GOPATH":  "/go",
-		"LANG":    "C.UTF-8",
+		"PATH":   "/custom/bin:/usr/bin",
+		"GOPATH": "/go",
+		"LANG":   "C.UTF-8",
 	}
 
 	env := newTestEnv(t, conn)
@@ -570,4 +573,56 @@ func TestPluginEnvironment_UpdateFromImageEnv_NilImageEnv(t *testing.T) {
 	require.NoError(t, env.UpdateFromImageEnv(&envMap)(t.Context()))
 
 	assert.Equal(t, map[string]string{"FOO": "bar"}, envMap)
+}
+
+// truncatingExecServer sends output but never Done — simulates a plugin crash mid-exec.
+type truncatingExecServer struct {
+	pluginv1.UnimplementedBackendPluginServer
+}
+
+func (truncatingExecServer) Capabilities(_ context.Context, _ *pluginv1.CapabilitiesRequest) (*pluginv1.CapabilitiesResponse, error) {
+	return &pluginv1.CapabilitiesResponse{Name: "trunc", RootPath: "/r", ActPath: "/r/act"}, nil
+}
+
+func (truncatingExecServer) Create(_ context.Context, _ *pluginv1.CreateRequest) (*pluginv1.CreateResponse, error) {
+	return &pluginv1.CreateResponse{EnvironmentId: "trunc"}, nil
+}
+
+func (truncatingExecServer) Exec(_ *pluginv1.ExecRequest, stream grpc.ServerStreamingServer[pluginv1.ExecOutput]) error {
+	_ = stream.Send(&pluginv1.ExecOutput{Stream: pluginv1.ExecOutput_STDOUT, Data: []byte("partial")})
+	return nil
+}
+
+func TestPluginEnvironment_ExecStreamTruncated(t *testing.T) {
+	lis := bufconn.Listen(bufSize)
+	srv := grpc.NewServer()
+	pluginv1.RegisterBackendPluginServer(srv, truncatingExecServer{})
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+
+	conn, err := grpc.NewClient("passthrough:///bufconn",
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return lis.DialContext(ctx)
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { conn.Close() })
+
+	env := newTestEnv(t, conn)
+	require.NoError(t, env.Create(nil, nil)(t.Context()))
+
+	err = env.Exec([]string{"cmd"}, nil, "", "")(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stream ended before completion signal")
+}
+
+func TestPluginEnvironment_CopyEmpty(t *testing.T) {
+	mock, conn := startMockServer(t)
+	env := newTestEnv(t, conn)
+	require.NoError(t, env.Create(nil, nil)(t.Context()))
+
+	err := env.CopyTarStream(t.Context(), "/empty-dest", bytes.NewReader(nil))
+	require.NoError(t, err)
+	assert.Equal(t, "/empty-dest", mock.copyInDest)
 }
