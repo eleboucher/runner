@@ -27,6 +27,7 @@ import (
 	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/exprparser"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
+	"code.forgejo.org/forgejo/runner/v12/act/plugin"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -930,7 +931,135 @@ func (rc *RunContext) startContainer() common.Executor {
 		if rc.IsHostEnv(ctx) {
 			return rc.startHostEnvironment()(ctx)
 		}
+		image := rc.runsOnImage(ctx)
+		if name := rc.pluginName(ctx); name != "" {
+			return rc.startPluginEnvironment(name)(ctx)
+		}
+		if strings.Contains(image, "://") {
+			scheme, _, _ := strings.Cut(image, ":")
+			return fmt.Errorf("unknown backend %q: not a configured plugin", scheme)
+		}
 		return rc.startJobContainer()(ctx)
+	}
+}
+
+func (rc *RunContext) pluginName(ctx context.Context) string {
+	image := rc.runsOnImage(ctx)
+	name, _, _ := strings.Cut(image, ":")
+	if _, ok := rc.Config.Plugins[name]; ok {
+		return name
+	}
+	return ""
+}
+
+func (rc *RunContext) pluginLabelArg(ctx context.Context) string {
+	image := rc.runsOnImage(ctx)
+	if _, arg, ok := strings.Cut(image, ":"); ok {
+		return strings.TrimPrefix(arg, "//")
+	}
+	return ""
+}
+
+func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
+	return func(ctx context.Context) error {
+		logger := common.Logger(ctx)
+
+		var pluginClient *plugin.Client
+		var pluginOpts map[string]string
+		var err error
+		if v1Cfg, ok := rc.Config.Plugins[name]; ok {
+			logger.Infof("\U0001f50c Connecting to plugin %s at %s", name, v1Cfg.Address)
+			// TODO: thread TLS config through PluginConfig.
+			pluginClient, err = plugin.NewClient(ctx, v1Cfg.Address, plugin.WithAllowPlainTCP())
+			pluginOpts = v1Cfg.Options
+		} else {
+			return fmt.Errorf("plugin %q not found in configuration", name)
+		}
+		if err != nil {
+			return fmt.Errorf("plugin %s: %w", name, err)
+		}
+
+		rawLogger := logger.WithField("raw_output", true)
+		logWriter := common.NewLineWriter(rc.commandHandler(ctx), func(s string) bool {
+			if rc.Config.LogOutput {
+				rawLogger.Infof("%s", s)
+			} else {
+				rawLogger.Debugf("%s", s)
+			}
+			return true
+		})
+
+		opts := make(map[string]string)
+		maps.Copy(opts, pluginOpts)
+		if labelArg := rc.pluginLabelArg(ctx); labelArg != "" {
+			opts["label_arg"] = labelArg
+		}
+		opts["job_timeout"] = rc.Config.ContainerMaxLifetime.String()
+
+		containerName := rc.jobContainerName()
+		rc.Env["JOB_CONTAINER_NAME"] = containerName
+
+		caps := pluginClient.Capabilities()
+		envList := []string{
+			fmt.Sprintf("RUNNER_TOOL_CACHE=%s", caps.GetToolCachePath()),
+			fmt.Sprintf("RUNNER_OS=%s", caps.GetRunnerContext()["os"]),
+			fmt.Sprintf("RUNNER_ARCH=%s", caps.GetRunnerContext()["arch"]),
+			fmt.Sprintf("RUNNER_TEMP=%s", caps.GetRunnerContext()["temp"]),
+			"LANG=C.UTF-8",
+		}
+
+		env := pluginClient.NewEnvironment(&container.NewContainerInput{
+			Image:      rc.containerImage(ctx),
+			Name:       containerName,
+			Env:        envList,
+			WorkingDir: rc.Config.Workdir,
+			Stdout:     logWriter,
+			Stderr:     logWriter,
+		}, opts)
+
+		if adder, ok := env.(container.ServiceAdder); ok {
+			for serviceID, spec := range rc.Run.Job().Services {
+				interpolatedImage := rc.ExprEval.Interpolate(ctx, spec.Image)
+				if interpolatedImage == "" {
+					continue
+				}
+				envs := make(map[string]string, len(spec.Env))
+				for k, v := range spec.Env {
+					envs[k] = rc.ExprEval.Interpolate(ctx, v)
+				}
+				var ports []string
+				for _, port := range spec.Ports {
+					ports = append(ports, rc.ExprEval.Interpolate(ctx, port))
+				}
+				adder.AddServiceContainerRaw(serviceID, interpolatedImage, envs, ports)
+			}
+		}
+
+		rc.JobContainer = env
+
+		rc.cleanUpJobContainer = func(ctx context.Context) error {
+			defer pluginClient.Close()
+			if rc.JobContainer != nil {
+				return rc.JobContainer.Remove()(ctx)
+			}
+			return nil
+		}
+
+		return common.NewPipelineExecutor(
+			env.Pull(rc.Config.ForcePull),
+			env.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
+			env.Start(false),
+			env.Exec([]string{"mkdir", "-p", rc.Config.Workdir}, nil, "", ""),
+			env.Copy(env.GetActPath()+"/", &container.FileEntry{
+				Name: "workflow/event.json",
+				Mode: 0o644,
+				Body: rc.EventJSON,
+			}, &container.FileEntry{
+				Name: "workflow/envs.txt",
+				Mode: 0o666,
+				Body: "",
+			}),
+		)(ctx)
 	}
 }
 

@@ -27,7 +27,7 @@ func ParseEnvFile(e Container, srcPath string, env *map[string]string) common.Ex
 			return err
 		}
 
-		// parseEnvFile is used to parse an action's outputs into $FORGEJO_ENV, $FORGEJO_OUTPUTS, and $FORGEJO_STATE.
+		// ParseEnvFile is used to parse an action's outputs into $FORGEJO_ENV, $FORGEJO_OUTPUTS, and $FORGEJO_STATE.
 		// The limits described here are currently based upon defined limits for OUTPUTS, but seem reasonable for the
 		// other usages as well.
 		//
