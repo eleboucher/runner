@@ -17,6 +17,8 @@ import (
 	pluginv1 "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 )
 
@@ -38,6 +40,14 @@ func New() *Server {
 	return &Server{
 		envs: make(map[string]*environment),
 	}
+}
+
+// Register wires this server plus a SERVING grpc.health.v1 onto grpcServer.
+func (s *Server) Register(grpcServer *grpc.Server) {
+	pluginv1.RegisterBackendPluginServer(grpcServer, s)
+	healthSrv := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthSrv)
+	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 }
 
 func (s *Server) getEnv(id string) (*environment, error) {
