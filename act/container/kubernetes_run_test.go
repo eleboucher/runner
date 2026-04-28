@@ -218,19 +218,17 @@ func TestK8sPod_CreatePod_MissingPodSpecFile(t *testing.T) {
 }
 
 func TestK8sPod_WaitForPodRunning(t *testing.T) {
-	fakeClient := fake.NewSimpleClientset()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
+		Status:     corev1.PodStatus{Phase: corev1.PodPending},
+	}
+	fakeClient := fake.NewSimpleClientset(pod)
 	watcher := watch.NewFake()
-
 	fakeClient.PrependWatchReactor("pods", k8stesting.DefaultWatchReactor(watcher, nil))
 
 	p := newTestK8sPod(t, fakeClient)
 
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
-	}
-
 	go func() {
-		// Simulate pod going through Pending → Running.
 		watcher.Modify(&corev1.Pod{
 			ObjectMeta: pod.ObjectMeta,
 			Status:     corev1.PodStatus{Phase: corev1.PodPending},
@@ -241,19 +239,19 @@ func TestK8sPod_WaitForPodRunning(t *testing.T) {
 		})
 	}()
 
-	err := p.waitForPodRunning(t.Context(), pod)
-	require.NoError(t, err)
+	require.NoError(t, p.waitForPodRunning(t.Context(), pod))
 }
 
 func TestK8sPod_WaitForPodRunning_PodFailed(t *testing.T) {
-	fakeClient := fake.NewSimpleClientset()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
+		Status:     corev1.PodStatus{Phase: corev1.PodPending},
+	}
+	fakeClient := fake.NewSimpleClientset(pod)
 	watcher := watch.NewFake()
 	fakeClient.PrependWatchReactor("pods", k8stesting.DefaultWatchReactor(watcher, nil))
 
 	p := newTestK8sPod(t, fakeClient)
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
-	}
 
 	go func() {
 		watcher.Modify(&corev1.Pod{
@@ -269,14 +267,15 @@ func TestK8sPod_WaitForPodRunning_PodFailed(t *testing.T) {
 }
 
 func TestK8sPod_WaitForPodRunning_PodDeleted(t *testing.T) {
-	fakeClient := fake.NewSimpleClientset()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
+		Status:     corev1.PodStatus{Phase: corev1.PodPending},
+	}
+	fakeClient := fake.NewSimpleClientset(pod)
 	watcher := watch.NewFake()
 	fakeClient.PrependWatchReactor("pods", k8stesting.DefaultWatchReactor(watcher, nil))
 
 	p := newTestK8sPod(t, fakeClient)
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
-	}
 
 	go func() {
 		watcher.Delete(&corev1.Pod{ObjectMeta: pod.ObjectMeta})
@@ -288,18 +287,17 @@ func TestK8sPod_WaitForPodRunning_PodDeleted(t *testing.T) {
 }
 
 func TestK8sPod_WaitForPodRunning_Timeout(t *testing.T) {
-	fakeClient := fake.NewSimpleClientset()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
+		Status:     corev1.PodStatus{Phase: corev1.PodPending},
+	}
+	fakeClient := fake.NewSimpleClientset(pod)
 	fakeWatcher := watch.NewFake()
 	fakeClient.PrependWatchReactor("pods", k8stesting.DefaultWatchReactor(fakeWatcher, nil))
 
 	p := newTestK8sPod(t, fakeClient)
 	p.config.PollTimeout = 100 * time.Millisecond
 
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
-	}
-
-	// Stop the watcher after the poll timeout so the channel closes.
 	go func() {
 		time.Sleep(150 * time.Millisecond)
 		fakeWatcher.Stop()
@@ -308,6 +306,16 @@ func TestK8sPod_WaitForPodRunning_Timeout(t *testing.T) {
 	err := p.waitForPodRunning(t.Context(), pod)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "timeout")
+}
+
+func TestK8sPod_WaitForPodRunning_AlreadyRunningOnGet(t *testing.T) {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "test-ns"},
+		Status:     corev1.PodStatus{Phase: corev1.PodRunning},
+	}
+	fakeClient := fake.NewSimpleClientset(pod)
+	p := newTestK8sPod(t, fakeClient)
+	require.NoError(t, p.waitForPodRunning(t.Context(), pod))
 }
 
 func TestK8sPod_DeletePod(t *testing.T) {
