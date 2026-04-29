@@ -75,3 +75,8 @@ type typeAssertMockContainer struct {
 
 // Type assert Container + LinuxContainerEnvironmentExtensions implements ExecutionsEnvironment
 var _ ExecutionsEnvironment = &typeAssertMockContainer{}
+
+func TestLinuxContainerEnvironmentExtensions_BackendName(t *testing.T) {
+	ext := &LinuxContainerEnvironmentExtensions{}
+	assert.Equal(t, "docker", ext.BackendName())
+}

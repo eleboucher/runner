@@ -20,6 +20,14 @@ import (
 // Type assert HostEnvironment implements ExecutionsEnvironment
 var _ ExecutionsEnvironment = &HostEnvironment{}
 
+func TestHostEnvironment_BackendName(t *testing.T) {
+	e := &HostEnvironment{}
+	assert.Equal(t, "host", e.BackendName())
+
+	eLXC := &HostEnvironment{LXC: true}
+	assert.Equal(t, "lxc", eLXC.BackendName())
+}
+
 func TestCopyDir(t *testing.T) {
 	dir := t.TempDir()
 	ctx := t.Context()
