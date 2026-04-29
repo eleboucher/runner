@@ -2,64 +2,165 @@ package runner
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"sync"
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
+	"code.forgejo.org/forgejo/runner/v12/act/plugin"
+	"github.com/sirupsen/logrus"
 )
 
-type BackendFactory interface {
-	Name() string
-	Match(ctx context.Context, rc *RunContext) bool
-	CreateExecutionEnvironment(rc *RunContext) common.Executor
+func init() {
+	for _, f := range []Factory{
+		dockerFactory{},
+		hostFactory{},
+		lxcFactory{},
+	} {
+		if err := RegisterFactory(f); err != nil {
+			panic(err)
+		}
+	}
 }
 
-var backends []BackendFactory
+type dockerFactory struct{}
 
-func RegisterBackend(f BackendFactory) {
-	backends = append(backends, f)
+func (dockerFactory) GetID() ID { return "docker" }
+func (dockerFactory) CreateBackend(_ map[string]any) (Backend, error) {
+	return dockerBackend{baseBackend: baseBackend{id: "docker"}}, nil
 }
 
-func pickBackend(ctx context.Context, rc *RunContext) BackendFactory {
-	for _, f := range backends {
-		if f.Match(ctx, rc) {
-			return f
+type dockerBackend struct{ baseBackend }
+
+func (dockerBackend) CreateExecutionEnvironment(rc *RunContext, _ *LabelConfiguration) common.Executor {
+	return rc.startJobContainer()
+}
+
+type hostFactory struct{}
+
+func (hostFactory) GetID() ID { return "host" }
+func (hostFactory) CreateBackend(_ map[string]any) (Backend, error) {
+	return hostBackend{baseBackend: baseBackend{id: "host"}}, nil
+}
+
+type hostBackend struct{ baseBackend }
+
+func (hostBackend) ValidateLabelConfiguration(label string, lc *LabelConfiguration) error {
+	if len(lc.Options) > 0 {
+		return fmt.Errorf("label %q (host): backend takes no options", label)
+	}
+	return nil
+}
+
+func (hostBackend) CreateExecutionEnvironment(rc *RunContext, _ *LabelConfiguration) common.Executor {
+	return rc.startHostEnvironment()
+}
+
+type lxcFactory struct{}
+
+func (lxcFactory) GetID() ID { return "lxc" }
+func (lxcFactory) CreateBackend(_ map[string]any) (Backend, error) {
+	return lxcBackend{baseBackend: baseBackend{id: "lxc"}}, nil
+}
+
+type lxcBackend struct{ baseBackend }
+
+func (lxcBackend) ValidateLabelString(label, str string) error {
+	// <name>:lxc://<template>[:<release>[:<config>]]
+	if !strings.Contains(str, "lxc://") {
+		return fmt.Errorf("label %q (lxc): missing template", label)
+	}
+	return nil
+}
+
+func (lxcBackend) CreateExecutionEnvironment(rc *RunContext, _ *LabelConfiguration) common.Executor {
+	return rc.startHostEnvironment()
+}
+
+// pluginBackend caches a *plugin.Client across jobs so the gRPC connection,
+// capabilities, and any plugin-side state outlive a single job. The dialer
+// is provided by the factory; the client is created lazily on first job to
+// avoid blocking runner startup when the plugin is temporarily unreachable.
+type pluginBackend struct {
+	baseBackend
+	options map[string]string
+	dial    func(context.Context) (*plugin.Client, error)
+
+	once   sync.Once
+	client *plugin.Client
+	err    error
+}
+
+func (p *pluginBackend) ensureClient(ctx context.Context) (*plugin.Client, error) {
+	p.once.Do(func() {
+		p.client, p.err = p.dial(ctx)
+	})
+	return p.client, p.err
+}
+
+func (p *pluginBackend) CreateExecutionEnvironment(rc *RunContext, _ *LabelConfiguration) common.Executor {
+	return func(ctx context.Context) error {
+		client, err := p.ensureClient(ctx)
+		if err != nil {
+			return fmt.Errorf("plugin %s: %w", p.id, err)
+		}
+		return rc.runPluginEnvironment(ctx, string(p.id), client, p.options)
+	}
+}
+
+func (p *pluginBackend) Close() error {
+	if p.client == nil {
+		return nil
+	}
+	return p.client.Close()
+}
+
+type pluginV1Factory struct {
+	id      ID
+	address string
+	options map[string]string
+}
+
+func (p *pluginV1Factory) GetID() ID { return p.id }
+func (p *pluginV1Factory) CreateBackend(_ map[string]any) (Backend, error) {
+	id := p.id
+	address := p.address
+	return &pluginBackend{
+		baseBackend: baseBackend{id: id},
+		options:     p.options,
+		dial: func(ctx context.Context) (*plugin.Client, error) {
+			logrus.WithContext(ctx).Infof("\U0001f50c Connecting to plugin %s at %s", id, address)
+			// TODO: thread TLS config through PluginConfig.
+			return plugin.NewClient(ctx, address, plugin.WithAllowPlainTCP())
+		},
+	}, nil
+}
+
+// RegisterPluginFactories registers one factory per configured plugin.
+// Called once at runner startup, before any job is dispatched.
+func RegisterPluginFactories(plugins map[string]PluginConfig) error {
+	for name, cfg := range plugins {
+		if err := RegisterFactory(&pluginV1Factory{id: ID(name), address: cfg.Address, options: cfg.Options}); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-// Built-in order: specific matchers first, docker last as catch-all.
-// Plugin factories insert before docker via RegisterPluginBackend.
-func init() {
-	RegisterBackend(hostBackend{})
-	RegisterBackend(dockerBackend{})
-}
-
-type hostBackend struct{}
-
-func (hostBackend) Name() string                                              { return "host" }
-func (hostBackend) Match(ctx context.Context, rc *RunContext) bool            { return rc.IsHostEnv(ctx) }
-func (hostBackend) CreateExecutionEnvironment(rc *RunContext) common.Executor { return rc.startHostEnvironment() }
-
-type dockerBackend struct{}
-
-func (dockerBackend) Name() string                                              { return "docker" }
-func (dockerBackend) Match(ctx context.Context, rc *RunContext) bool            { return true }
-func (dockerBackend) CreateExecutionEnvironment(rc *RunContext) common.Executor { return rc.startJobContainer() }
-
-type pluginBackend struct{ name string }
-
-func (p pluginBackend) Name() string                                   { return p.name }
-func (p pluginBackend) Match(ctx context.Context, rc *RunContext) bool { return rc.pluginName(ctx) == p.name }
-func (p pluginBackend) CreateExecutionEnvironment(rc *RunContext) common.Executor {
-	return rc.startPluginEnvironment(p.name)
-}
-
-func RegisterPluginBackend(name string) {
-	for _, b := range backends {
-		if b.Name() == name {
-			return
+// CloseBackends closes any backend that implements io.Closer (e.g. plugin
+// backends). Call once at runner shutdown.
+func CloseBackends() error {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	var firstErr error
+	for id, b := range instances {
+		closer, ok := b.(interface{ Close() error })
+		if !ok {
+			continue
+		}
+		if err := closer.Close(); err != nil && firstErr == nil {
+			firstErr = fmt.Errorf("close backend %q: %w", id, err)
 		}
 	}
-	// Insert before docker (always last).
-	backends = append(backends[:len(backends)-1], pluginBackend{name: name}, backends[len(backends)-1])
+	return firstErr
 }

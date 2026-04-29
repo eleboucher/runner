@@ -902,8 +902,26 @@ func (rc *RunContext) getToolCache(ctx context.Context) string {
 
 func (rc *RunContext) startContainer() common.Executor {
 	return func(ctx context.Context) error {
-		return pickBackend(ctx, rc).CreateExecutionEnvironment(rc)(ctx)
+		id := rc.backendID(ctx)
+		backend, err := LookupBackend(id)
+		if err != nil {
+			return err
+		}
+		return backend.CreateExecutionEnvironment(rc, &LabelConfiguration{Backend: id})(ctx)
 	}
+}
+
+func (rc *RunContext) backendID(ctx context.Context) ID {
+	switch {
+	case rc.IsBareHostEnv(ctx):
+		return "host"
+	case rc.IsLXCHostEnv(ctx):
+		return "lxc"
+	}
+	if name := rc.pluginName(ctx); name != "" {
+		return ID(name)
+	}
+	return "docker"
 }
 
 func (rc *RunContext) pluginName(ctx context.Context) string {
@@ -923,107 +941,93 @@ func (rc *RunContext) pluginLabelArg(ctx context.Context) string {
 	return ""
 }
 
-func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
-	return func(ctx context.Context) error {
-		logger := common.Logger(ctx)
-
-		var pluginClient *plugin.Client
-		var pluginOpts map[string]string
-		var err error
-		if v1Cfg, ok := rc.Config.Plugins[name]; ok {
-			logger.Infof("\U0001f50c Connecting to plugin %s at %s", name, v1Cfg.Address)
-			// TODO: thread TLS config through PluginConfig.
-			pluginClient, err = plugin.NewClient(ctx, v1Cfg.Address, plugin.WithAllowPlainTCP())
-			pluginOpts = v1Cfg.Options
+// runPluginEnvironment is invoked by pluginBackend.CreateExecutionEnvironment
+// once the cached client is available. The client itself is owned by the
+// Backend and persists across jobs.
+func (rc *RunContext) runPluginEnvironment(ctx context.Context, _ string, pluginClient *plugin.Client, pluginOpts map[string]string) error {
+	logger := common.Logger(ctx)
+	rawLogger := logger.WithField("raw_output", true)
+	logWriter := common.NewLineWriter(rc.commandHandler(ctx), func(s string) bool {
+		if rc.Config.LogOutput {
+			rawLogger.Infof("%s", s)
 		} else {
-			return fmt.Errorf("plugin %q not found in configuration", name)
+			rawLogger.Debugf("%s", s)
 		}
-		if err != nil {
-			return fmt.Errorf("plugin %s: %w", name, err)
-		}
+		return true
+	})
 
-		rawLogger := logger.WithField("raw_output", true)
-		logWriter := common.NewLineWriter(rc.commandHandler(ctx), func(s string) bool {
-			if rc.Config.LogOutput {
-				rawLogger.Infof("%s", s)
-			} else {
-				rawLogger.Debugf("%s", s)
-			}
-			return true
-		})
-
-		opts := make(map[string]string)
-		maps.Copy(opts, pluginOpts)
-		if labelArg := rc.pluginLabelArg(ctx); labelArg != "" {
-			opts["label_arg"] = labelArg
-		}
-		opts["job_timeout"] = rc.Config.ContainerMaxLifetime.String()
-
-		containerName := rc.jobContainerName()
-		rc.Env["JOB_CONTAINER_NAME"] = containerName
-
-		caps := pluginClient.Capabilities()
-		envList := []string{
-			fmt.Sprintf("RUNNER_TOOL_CACHE=%s", caps.GetToolCachePath()),
-			fmt.Sprintf("RUNNER_OS=%s", caps.GetRunnerContext()["os"]),
-			fmt.Sprintf("RUNNER_ARCH=%s", caps.GetRunnerContext()["arch"]),
-			fmt.Sprintf("RUNNER_TEMP=%s", caps.GetRunnerContext()["temp"]),
-			"LANG=C.UTF-8",
-		}
-
-		env := pluginClient.NewEnvironment(&container.NewContainerInput{
-			Image:      rc.containerImage(ctx),
-			Name:       containerName,
-			Env:        envList,
-			WorkingDir: rc.Config.Workdir,
-			Stdout:     logWriter,
-			Stderr:     logWriter,
-		}, opts)
-
-		if adder, ok := env.(container.ServiceAdder); ok {
-			for serviceID, spec := range rc.Run.Job().Services {
-				interpolatedImage := rc.ExprEval.Interpolate(ctx, spec.Image)
-				if interpolatedImage == "" {
-					continue
-				}
-				envs := make(map[string]string, len(spec.Env))
-				for k, v := range spec.Env {
-					envs[k] = rc.ExprEval.Interpolate(ctx, v)
-				}
-				var ports []string
-				for _, port := range spec.Ports {
-					ports = append(ports, rc.ExprEval.Interpolate(ctx, port))
-				}
-				adder.AddServiceContainerRaw(serviceID, interpolatedImage, envs, ports)
-			}
-		}
-
-		rc.JobContainer = env
-
-		rc.cleanUpJobContainer = func(ctx context.Context) error {
-			defer pluginClient.Close()
-			if rc.JobContainer != nil {
-				return rc.JobContainer.Remove()(ctx)
-			}
-			return nil
-		}
-
-		return common.NewPipelineExecutor(
-			env.Pull(rc.Config.ForcePull),
-			env.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
-			env.Start(false),
-			env.Exec([]string{"mkdir", "-p", rc.Config.Workdir}, nil, "", ""),
-			env.Copy(env.GetActPath()+"/", &container.FileEntry{
-				Name: "workflow/event.json",
-				Mode: 0o644,
-				Body: rc.EventJSON,
-			}, &container.FileEntry{
-				Name: "workflow/envs.txt",
-				Mode: 0o666,
-				Body: "",
-			}),
-		)(ctx)
+	opts := make(map[string]string)
+	maps.Copy(opts, pluginOpts)
+	if labelArg := rc.pluginLabelArg(ctx); labelArg != "" {
+		opts["label_arg"] = labelArg
 	}
+	opts["job_timeout"] = rc.Config.ContainerMaxLifetime.String()
+
+	containerName := rc.jobContainerName()
+	rc.Env["JOB_CONTAINER_NAME"] = containerName
+
+	caps := pluginClient.Capabilities()
+	envList := []string{
+		fmt.Sprintf("RUNNER_TOOL_CACHE=%s", caps.GetToolCachePath()),
+		fmt.Sprintf("RUNNER_OS=%s", caps.GetRunnerContext()["os"]),
+		fmt.Sprintf("RUNNER_ARCH=%s", caps.GetRunnerContext()["arch"]),
+		fmt.Sprintf("RUNNER_TEMP=%s", caps.GetRunnerContext()["temp"]),
+		"LANG=C.UTF-8",
+	}
+
+	env := pluginClient.NewEnvironment(&container.NewContainerInput{
+		Image:      rc.containerImage(ctx),
+		Name:       containerName,
+		Env:        envList,
+		WorkingDir: rc.Config.Workdir,
+		Stdout:     logWriter,
+		Stderr:     logWriter,
+	}, opts)
+
+	if adder, ok := env.(container.ServiceAdder); ok {
+		for serviceID, spec := range rc.Run.Job().Services {
+			interpolatedImage := rc.ExprEval.Interpolate(ctx, spec.Image)
+			if interpolatedImage == "" {
+				continue
+			}
+			envs := make(map[string]string, len(spec.Env))
+			for k, v := range spec.Env {
+				envs[k] = rc.ExprEval.Interpolate(ctx, v)
+			}
+			var ports []string
+			for _, port := range spec.Ports {
+				ports = append(ports, rc.ExprEval.Interpolate(ctx, port))
+			}
+			adder.AddServiceContainerRaw(serviceID, interpolatedImage, envs, ports)
+		}
+	}
+
+	rc.JobContainer = env
+
+	rc.cleanUpJobContainer = func(ctx context.Context) error {
+		// Don't close the plugin client — it's cached on the Backend and
+		// reused across jobs. Only tear down the per-job environment.
+		if rc.JobContainer != nil {
+			return rc.JobContainer.Remove()(ctx)
+		}
+		return nil
+	}
+
+	return common.NewPipelineExecutor(
+		env.Pull(rc.Config.ForcePull),
+		env.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
+		env.Start(false),
+		env.Exec([]string{"mkdir", "-p", rc.Config.Workdir}, nil, "", ""),
+		env.Copy(env.GetActPath()+"/", &container.FileEntry{
+			Name: "workflow/event.json",
+			Mode: 0o644,
+			Body: rc.EventJSON,
+		}, &container.FileEntry{
+			Name: "workflow/envs.txt",
+			Mode: 0o666,
+			Body: "",
+		}),
+	)(ctx)
 }
 
 func (rc *RunContext) IsBareHostEnv(ctx context.Context) bool {
