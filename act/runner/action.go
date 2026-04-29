@@ -280,6 +280,11 @@ func removeGitIgnore(ctx context.Context, directory string) error {
 func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, subpath string, localAction bool, entrypointType string) error {
 	logger := common.Logger(ctx)
 	rc := step.getRunContext()
+
+	if !rc.JobContainer.SupportsDockerContainerActions() {
+		return fmt.Errorf("Docker container actions are not supported by the back-end %s", rc.JobContainer.BackendID())
+	}
+
 	action := step.getActionModel()
 
 	targetPlatform := rc.Config.ContainerArchitecture
@@ -434,7 +439,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
 	networkMode := fmt.Sprintf("container:%s", rc.jobContainerName())
-	if rc.IsHostEnv(ctx) {
+	if rc.JobContainer.ManagesOwnNetworking() {
 		networkMode = "default"
 	}
 	stepContainer := container.NewContainer(&container.NewContainerInput{

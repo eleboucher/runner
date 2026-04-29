@@ -299,7 +299,7 @@ func (e *HostEnvironment) exec(ctx context.Context, commandparam []string, cmdli
 	command := make([]string, len(commandparam))
 	copy(command, commandparam)
 
-	if e.GetLXC() {
+	if e.LXC {
 		if user == "root" {
 			command = append([]string{"/usr/bin/sudo"}, command...)
 		} else {
@@ -385,7 +385,7 @@ func (e *HostEnvironment) UpdateFromEnv(srcPath string, env *map[string]string) 
 
 func (e *HostEnvironment) Remove() common.Executor {
 	return func(ctx context.Context) error {
-		if e.GetLXC() {
+		if e.LXC {
 			// there may be files owned by root: removal
 			// is the responsibility of the LXC backend
 			return nil
@@ -403,8 +403,19 @@ func (e *HostEnvironment) ToContainerPath(path string) string {
 	return path
 }
 
-func (e *HostEnvironment) GetLXC() bool {
-	return e.LXC
+func (e *HostEnvironment) BackendID() string {
+	if e.LXC {
+		return "lxc"
+	}
+	return "host"
+}
+
+func (*HostEnvironment) SupportsDockerContainerActions() bool {
+	return true
+}
+
+func (*HostEnvironment) ManagesOwnNetworking() bool {
+	return true
 }
 
 func (e *HostEnvironment) GetName() string {

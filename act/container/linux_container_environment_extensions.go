@@ -52,7 +52,15 @@ func (*LinuxContainerEnvironmentExtensions) GetName() string {
 	return "NAME"
 }
 
-func (*LinuxContainerEnvironmentExtensions) GetLXC() bool {
+func (*LinuxContainerEnvironmentExtensions) BackendID() string {
+	return "docker"
+}
+
+func (*LinuxContainerEnvironmentExtensions) SupportsDockerContainerActions() bool {
+	return true
+}
+
+func (*LinuxContainerEnvironmentExtensions) ManagesOwnNetworking() bool {
 	return false
 }
 

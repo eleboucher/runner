@@ -60,6 +60,10 @@ func (sd *stepDocker) runUsesContainer() common.Executor {
 	step := sd.Step
 
 	return func(ctx context.Context) error {
+		if !rc.JobContainer.SupportsDockerContainerActions() {
+			return fmt.Errorf("Docker container actions are not supported by the back-end %s", rc.JobContainer.BackendID())
+		}
+
 		image := strings.TrimPrefix(step.Uses, "docker://")
 		eval := rc.NewExpressionEvaluator(ctx)
 		cmd, err := shellquote.Split(eval.Interpolate(ctx, step.With["args"]))
