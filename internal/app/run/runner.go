@@ -81,8 +81,12 @@ func NewRunner(cfg *config.Config, name string, ls labels.Labels, cli client.Cli
 	envs["FORGEJO_ACTIONS"] = "true"
 	envs["FORGEJO_ACTIONS_RUNNER_VERSION"] = ver.Version()
 
-	for name := range cfg.Plugins {
-		runner.RegisterPluginBackend(name)
+	plugins := make(map[string]runner.PluginConfig, len(cfg.Plugins))
+	for name, p := range cfg.Plugins {
+		plugins[name] = runner.PluginConfig{Address: p.Address, Options: p.Options}
+	}
+	if err := runner.RegisterPluginFactories(plugins); err != nil {
+		log.Errorf("register plugin factories: %v", err)
 	}
 
 	return &Runner{
