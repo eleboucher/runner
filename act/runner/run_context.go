@@ -535,9 +535,21 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		for _, port := range spec.Ports {
 			interpolatedPorts = append(interpolatedPorts, rc.ExprEval.Interpolate(ctx, port))
 		}
-		exposedPorts, portBindings, err := nat.ParsePortSpecs(interpolatedPorts)
+		natExposed, natBindings, err := nat.ParsePortSpecs(interpolatedPorts)
 		if err != nil {
 			return fmt.Errorf("failed to parse service %s ports: %w", serviceID, err)
+		}
+		exposedPorts := make(map[container.Port]struct{}, len(natExposed))
+		for port := range natExposed {
+			exposedPorts[container.Port(port)] = struct{}{}
+		}
+		portBindings := make(map[container.Port][]container.PortBinding, len(natBindings))
+		for port, bindings := range natBindings {
+			pb := make([]container.PortBinding, len(bindings))
+			for i, b := range bindings {
+				pb[i] = container.PortBinding{HostIP: b.HostIP, HostPort: b.HostPort}
+			}
+			portBindings[container.Port(port)] = pb
 		}
 
 		serviceContainerName := createContainerName(rc.jobContainerName(), serviceID)
