@@ -904,16 +904,7 @@ func (rc *RunContext) getToolCache(ctx context.Context) string {
 
 func (rc *RunContext) startContainer() common.Executor {
 	return func(ctx context.Context) error {
-		if rc.IsHostEnv(ctx) {
-			return rc.startHostEnvironment()(ctx)
-		}
-		if name := rc.pluginName(ctx); name != "" {
-			return rc.startPluginEnvironment(name)(ctx)
-		}
-		if rc.IsK8sEnv(ctx) {
-			return rc.startK8sEnvironment()(ctx)
-		}
-		return rc.startJobContainer()(ctx)
+		return pickBackend(ctx, rc).CreateExecutionEnvironment(rc)(ctx)
 	}
 }
 
