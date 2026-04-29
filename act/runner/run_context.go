@@ -902,18 +902,7 @@ func (rc *RunContext) getToolCache(ctx context.Context) string {
 
 func (rc *RunContext) startContainer() common.Executor {
 	return func(ctx context.Context) error {
-		if rc.IsHostEnv(ctx) {
-			return rc.startHostEnvironment()(ctx)
-		}
-		image := rc.runsOnImage(ctx)
-		if name := rc.pluginName(ctx); name != "" {
-			return rc.startPluginEnvironment(name)(ctx)
-		}
-		if strings.Contains(image, "://") {
-			scheme, _, _ := strings.Cut(image, ":")
-			return fmt.Errorf("unknown backend %q: not a configured plugin", scheme)
-		}
-		return rc.startJobContainer()(ctx)
+		return pickBackend(ctx, rc).CreateExecutionEnvironment(rc)(ctx)
 	}
 }
 
