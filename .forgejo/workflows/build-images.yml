@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-images:
-    runs-on: docker
+    runs-on: multiarch
     steps:
       - uses: https://data.forgejo.org/actions/checkout@v5
 
@@ -54,7 +54,7 @@ jobs:
         uses: https://data.forgejo.org/docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
