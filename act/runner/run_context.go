@@ -558,6 +558,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 			Image:           interpolatedImage,
 			Username:        username,
 			Password:        password,
+			ForcePull:       rc.Config.ForcePull,
 			Cmd:             interpolatedCmd,
 			Entrypoint:      spec.GetEntrypoint(nil),
 			Init:            spec.EnableInit(false),
@@ -633,6 +634,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		Image:           image,
 		Username:        username,
 		Password:        password,
+		ForcePull:       rc.Config.ForcePull,
 		Name:            name,
 		Env:             envList,
 		ToolCache:       rc.getToolCache(ctx),
@@ -668,8 +670,6 @@ func (rc *RunContext) startJobContainer() common.Executor {
 			EnableIPv6: &rc.Config.ContainerNetworkEnableIPv6,
 		}
 		return common.NewPipelineExecutor(
-			rc.pullServicesImages(rc.Config.ForcePull),
-			rc.JobContainer.Pull(rc.Config.ForcePull),
 			rc.stopJobContainer(),
 			container.NewDockerNetworkCreateExecutor(rc.getNetworkName(ctx), &networkConfig).IfBool(!rc.IsHostEnv(ctx) && rc.Config.ContainerNetworkMode == ""), // if the value of `ContainerNetworkMode` is empty string, then will create a new network for containers.
 			rc.startServiceContainers(rc.getNetworkName(ctx)),
@@ -790,22 +790,11 @@ func (rc *RunContext) stopJobContainer() common.Executor {
 	}
 }
 
-func (rc *RunContext) pullServicesImages(forcePull bool) common.Executor {
-	return func(ctx context.Context) error {
-		execs := make([]common.Executor, 0, len(rc.ServiceContainers))
-		for _, c := range rc.ServiceContainers {
-			execs = append(execs, c.Pull(forcePull))
-		}
-		return common.NewParallelExecutor(len(execs), execs...)(ctx)
-	}
-}
-
 func (rc *RunContext) startServiceContainers(_ string) common.Executor {
 	return func(ctx context.Context) error {
 		execs := make([]common.Executor, 0, len(rc.ServiceContainers))
 		for _, c := range rc.ServiceContainers {
 			execs = append(execs, common.NewPipelineExecutor(
-				c.Pull(false),
 				c.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
 				c.Start(false),
 			))

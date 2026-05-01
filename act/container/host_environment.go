@@ -177,12 +177,6 @@ func (e *HostEnvironment) GetContainerArchive(ctx context.Context, srcPath strin
 	return io.NopCloser(buf), nil
 }
 
-func (e *HostEnvironment) Pull(_ bool) common.Executor {
-	return func(ctx context.Context) error {
-		return nil
-	}
-}
-
 func (e *HostEnvironment) Start(_ bool) common.Executor {
 	return func(ctx context.Context) error {
 		return nil

@@ -20,11 +20,6 @@ func (cm *containerMock) Create(capAdd, capDrop []string) common.Executor {
 	return args.Get(0).(func(context.Context) error)
 }
 
-func (cm *containerMock) Pull(forcePull bool) common.Executor {
-	args := cm.Called(forcePull)
-	return args.Get(0).(func(context.Context) error)
-}
-
 func (cm *containerMock) Start(attach bool) common.Executor {
 	args := cm.Called(attach)
 	return args.Get(0).(func(context.Context) error)

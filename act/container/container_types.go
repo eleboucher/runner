@@ -46,6 +46,11 @@ type NewContainerInput struct {
 	JobOptions    string
 
 	ValidVolumes []string
+
+	// ForcePull asks the back-end to re-fetch the image when creating the
+	// container. Back-ends that cannot re-fetch (or have nothing to fetch)
+	// should still succeed using whatever they have locally.
+	ForcePull bool
 }
 
 // FileEntry is a file to copy to a container
@@ -65,7 +70,6 @@ type Container interface {
 	CopyTarStream(ctx context.Context, destPath string, tarStream io.Reader) error
 	CopyDir(destPath, srcPath string, useGitIgnore bool) common.Executor
 	GetContainerArchive(ctx context.Context, srcPath string) (io.ReadCloser, error)
-	Pull(forcePull bool) common.Executor
 	Start(attach bool) common.Executor
 	Exec(command []string, env map[string]string, user, workdir string) common.Executor
 	UpdateFromEnv(srcPath string, env *map[string]string) common.Executor

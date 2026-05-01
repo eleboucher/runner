@@ -142,6 +142,7 @@ func (cr *containerReference) Create(capAdd, capDrop []string) common.Executor {
 	return infoExecutor.
 		Then(
 			common.NewPipelineExecutor(
+				cr.pull(cr.input.ForcePull),
 				cr.connect(),
 				cr.find(),
 				cr.create(capAdd, capDrop),
@@ -180,7 +181,7 @@ func (cr *containerReference) Start(attach bool) common.Executor {
 		)
 }
 
-func (cr *containerReference) Pull(forcePull bool) common.Executor {
+func (cr *containerReference) pull(forcePull bool) common.Executor {
 	return func(ctx context.Context) error {
 		platform, err := cr.platform(ctx)
 		if err != nil {

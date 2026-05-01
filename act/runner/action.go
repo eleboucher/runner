@@ -374,10 +374,9 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 			entrypoint = nil
 		}
 	}
-	stepContainer := newStepContainer(ctx, step, image, cmd, entrypoint, targetPlatform)
+	stepContainer := newStepContainer(ctx, step, image, cmd, entrypoint, targetPlatform, forcePull)
 	return common.NewPipelineExecutor(
 		prepImage,
-		stepContainer.Pull(forcePull),
 		stepContainer.Remove().IfBool(!rc.Config.ReuseContainers),
 		stepContainer.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
 		stepContainer.Start(true),
@@ -415,7 +414,7 @@ func evalDockerArgs(ctx context.Context, step step, action *model.Action, cmd *[
 	}
 }
 
-func newStepContainer(ctx context.Context, step step, image string, cmd, entrypoint []string, targetPlatform string) container.Container {
+func newStepContainer(ctx context.Context, step step, image string, cmd, entrypoint []string, targetPlatform string, forcePull bool) container.Container {
 	rc := step.getRunContext()
 	stepModel := step.getStepModel()
 	rawLogger := common.Logger(ctx).WithField("raw_output", true)
@@ -449,6 +448,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 		Image:           image,
 		Username:        rc.Config.Secrets["DOCKER_USERNAME"],
 		Password:        rc.Config.Secrets["DOCKER_PASSWORD"],
+		ForcePull:       forcePull,
 		Name:            createSimpleContainerName(rc.jobContainerName(), "STEP-"+stepModel.ID),
 		Env:             envList,
 		ToolCache:       rc.getToolCache(ctx),

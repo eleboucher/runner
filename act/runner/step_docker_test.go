@@ -57,10 +57,6 @@ func TestStepDockerMain(t *testing.T) {
 	}
 	sd.RunContext.ExprEval = sd.RunContext.NewExpressionEvaluator(ctx)
 
-	cm.On("Pull", false).Return(func(ctx context.Context) error {
-		return nil
-	})
-
 	cm.On("Remove").Return(func(ctx context.Context) error {
 		return nil
 	})

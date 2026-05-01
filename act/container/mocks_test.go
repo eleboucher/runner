@@ -595,59 +595,6 @@ func (_c *MockContainer_IsHealthy_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
-// Pull provides a mock function for the type MockContainer
-func (_mock *MockContainer) Pull(forcePull bool) common.Executor {
-	ret := _mock.Called(forcePull)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Pull")
-	}
-
-	var r0 common.Executor
-	if returnFunc, ok := ret.Get(0).(func(bool) common.Executor); ok {
-		r0 = returnFunc(forcePull)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(common.Executor)
-		}
-	}
-	return r0
-}
-
-// MockContainer_Pull_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Pull'
-type MockContainer_Pull_Call struct {
-	*mock.Call
-}
-
-// Pull is a helper method to define mock.On call
-//   - forcePull bool
-func (_e *MockContainer_Expecter) Pull(forcePull interface{}) *MockContainer_Pull_Call {
-	return &MockContainer_Pull_Call{Call: _e.mock.On("Pull", forcePull)}
-}
-
-func (_c *MockContainer_Pull_Call) Run(run func(forcePull bool)) *MockContainer_Pull_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 bool
-		if args[0] != nil {
-			arg0 = args[0].(bool)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockContainer_Pull_Call) Return(executor common.Executor) *MockContainer_Pull_Call {
-	_c.Call.Return(executor)
-	return _c
-}
-
-func (_c *MockContainer_Pull_Call) RunAndReturn(run func(forcePull bool) common.Executor) *MockContainer_Pull_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Remove provides a mock function for the type MockContainer
 func (_mock *MockContainer) Remove() common.Executor {
 	ret := _mock.Called()
