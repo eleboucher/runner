@@ -11,7 +11,9 @@ import (
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 )
 
-func parseEnvFile(e Container, srcPath string, env *map[string]string) common.Executor {
+// ParseEnvFile reads an env-file from the container at srcPath and parses it into env.
+// Used by back-ends to support the GITHUB_ENV / GITHUB_OUTPUT / GITHUB_STATE flow.
+func ParseEnvFile(e Container, srcPath string, env *map[string]string) common.Executor {
 	localEnv := *env
 	return func(ctx context.Context) error {
 		envTar, err := e.GetContainerArchive(ctx, srcPath)

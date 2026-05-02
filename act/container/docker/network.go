@@ -1,6 +1,6 @@
 //go:build !WITHOUT_DOCKER && (linux || darwin || windows || freebsd || openbsd)
 
-package container
+package docker
 
 import (
 	"context"

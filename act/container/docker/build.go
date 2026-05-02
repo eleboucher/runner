@@ -1,6 +1,6 @@
 //go:build !WITHOUT_DOCKER && (linux || darwin || windows || freebsd || openbsd)
 
-package container
+package docker
 
 import (
 	"context"
@@ -17,6 +17,15 @@ import (
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 )
+
+// NewDockerBuildExecutorInput is the input for NewDockerBuildExecutor.
+type NewDockerBuildExecutorInput struct {
+	ContextDir   string
+	Dockerfile   string
+	BuildContext io.Reader
+	ImageTag     string
+	Platform     string
+}
 
 // NewDockerBuildExecutor function to create a run executor for the container
 func NewDockerBuildExecutor(input NewDockerBuildExecutorInput) common.Executor {

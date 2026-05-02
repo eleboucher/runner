@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"code.forgejo.org/forgejo/runner/v12/act/container"
+	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/exprparser"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
 	"code.forgejo.org/forgejo/runner/v12/testutils"
@@ -848,8 +849,8 @@ jobs:
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			containerInputs := make([]container.NewContainerInput, 0, 5)
-			newContainer := container.NewContainer
-			defer testutils.MockVariable(&container.NewContainer, func(input *container.NewContainerInput) container.ExecutionsEnvironment {
+			newContainer := docker.NewContainer
+			defer testutils.MockVariable(&docker.NewContainer, func(input *container.NewContainerInput) container.ExecutionsEnvironment {
 				c := *input
 				c.Stdout = nil
 				c.Stderr = nil
@@ -891,7 +892,7 @@ jobs:
 type waitForServiceContainerMock struct {
 	mock.Mock
 	container.Container
-	container.LinuxContainerEnvironmentExtensions
+	docker.LinuxContainerEnvironmentExtensions
 }
 
 func (o *waitForServiceContainerMock) IsHealthy(ctx context.Context) (time.Duration, error) {

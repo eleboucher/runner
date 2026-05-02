@@ -1,4 +1,4 @@
-package container
+package docker
 
 import (
 	"bufio"
@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
+	"code.forgejo.org/forgejo/runner/v12/act/container"
 	"gotest.tools/v3/skip"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +45,7 @@ func TestDocker(t *testing.T) {
 
 	cr := &containerReference{
 		cli: client,
-		input: &NewContainerInput{
+		input: &container.NewContainerInput{
 			Image: "envmergetest",
 		},
 	}
@@ -73,22 +74,22 @@ type mockDockerClient struct {
 	mock.Mock
 }
 
-func (m *mockDockerClient) ContainerExecCreate(ctx context.Context, id string, opts container.ExecOptions) (container.ExecCreateResponse, error) {
+func (m *mockDockerClient) ContainerExecCreate(ctx context.Context, id string, opts dockercontainer.ExecOptions) (dockercontainer.ExecCreateResponse, error) {
 	args := m.Called(ctx, id, opts)
-	return args.Get(0).(container.ExecCreateResponse), args.Error(1)
+	return args.Get(0).(dockercontainer.ExecCreateResponse), args.Error(1)
 }
 
-func (m *mockDockerClient) ContainerExecAttach(ctx context.Context, id string, opts container.ExecAttachOptions) (types.HijackedResponse, error) {
+func (m *mockDockerClient) ContainerExecAttach(ctx context.Context, id string, opts dockercontainer.ExecAttachOptions) (types.HijackedResponse, error) {
 	args := m.Called(ctx, id, opts)
 	return args.Get(0).(types.HijackedResponse), args.Error(1)
 }
 
-func (m *mockDockerClient) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
+func (m *mockDockerClient) ContainerExecInspect(ctx context.Context, execID string) (dockercontainer.ExecInspect, error) {
 	args := m.Called(ctx, execID)
-	return args.Get(0).(container.ExecInspect), args.Error(1)
+	return args.Get(0).(dockercontainer.ExecInspect), args.Error(1)
 }
 
-func (m *mockDockerClient) CopyToContainer(ctx context.Context, id, path string, content io.Reader, options container.CopyToContainerOptions) error {
+func (m *mockDockerClient) CopyToContainer(ctx context.Context, id, path string, content io.Reader, options dockercontainer.CopyToContainerOptions) error {
 	args := m.Called(ctx, id, path, content, options)
 	return args.Error(0)
 }
@@ -122,8 +123,8 @@ func TestDockerExecAbort(t *testing.T) {
 	conn.On("Write", mock.AnythingOfType("[]uint8")).Return(1, nil)
 
 	client := &mockDockerClient{}
-	client.On("ContainerExecCreate", ctx, "123", mock.AnythingOfType("container.ExecOptions")).Return(container.ExecCreateResponse{ID: "id"}, nil)
-	// container.ExecStartOptions should be container.ExecAttachOptions but fails
+	client.On("ContainerExecCreate", ctx, "123", mock.AnythingOfType("container.ExecOptions")).Return(dockercontainer.ExecCreateResponse{ID: "id"}, nil)
+	// dockercontainer.ExecStartOptions should be dockercontainer.ExecAttachOptions but fails
 	client.On("ContainerExecAttach", ctx, "id", mock.AnythingOfType("container.ExecStartOptions")).Return(types.HijackedResponse{
 		Conn:   conn,
 		Reader: bufio.NewReader(endlessReader{}),
@@ -132,7 +133,7 @@ func TestDockerExecAbort(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &container.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -160,20 +161,20 @@ func TestDockerExecFailure(t *testing.T) {
 	conn := &mockConn{}
 
 	client := &mockDockerClient{}
-	client.On("ContainerExecCreate", ctx, "123", mock.AnythingOfType("container.ExecOptions")).Return(container.ExecCreateResponse{ID: "id"}, nil)
-	// container.ExecStartOptions should be container.ExecAttachOptions but fails
+	client.On("ContainerExecCreate", ctx, "123", mock.AnythingOfType("container.ExecOptions")).Return(dockercontainer.ExecCreateResponse{ID: "id"}, nil)
+	// dockercontainer.ExecStartOptions should be dockercontainer.ExecAttachOptions but fails
 	client.On("ContainerExecAttach", ctx, "id", mock.AnythingOfType("container.ExecStartOptions")).Return(types.HijackedResponse{
 		Conn:   conn,
 		Reader: bufio.NewReader(strings.NewReader("output")),
 	}, nil)
-	client.On("ContainerExecInspect", ctx, "id").Return(container.ExecInspect{
+	client.On("ContainerExecInspect", ctx, "id").Return(dockercontainer.ExecInspect{
 		ExitCode: 1,
 	}, nil)
 
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &container.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -196,7 +197,7 @@ func TestDockerCopyTarStream(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &container.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -220,7 +221,7 @@ func TestDockerCopyTarStreamErrorInCopyFiles(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &container.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -245,7 +246,7 @@ func TestDockerCopyTarStreamErrorInMkdir(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &container.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -257,8 +258,8 @@ func TestDockerCopyTarStreamErrorInMkdir(t *testing.T) {
 	client.AssertExpectations(t)
 }
 
-// Type assert containerReference implements ExecutionsEnvironment
-var _ ExecutionsEnvironment = &containerReference{}
+// Type assert containerReference implements container.ExecutionsEnvironment
+var _ container.ExecutionsEnvironment = &containerReference{}
 
 func TestCheckVolumes(t *testing.T) {
 	testCases := []struct {
@@ -323,11 +324,11 @@ func TestCheckVolumes(t *testing.T) {
 			logger, _ := test.NewNullLogger()
 			ctx := common.WithLogger(t.Context(), logger)
 			cr := &containerReference{
-				input: &NewContainerInput{
+				input: &container.NewContainerInput{
 					ValidVolumes: tc.validVolumes,
 				},
 			}
-			_, hostConf := cr.sanitizeConfig(ctx, &container.Config{}, &container.HostConfig{Binds: tc.binds})
+			_, hostConf := cr.sanitizeConfig(ctx, &dockercontainer.Config{}, &dockercontainer.HostConfig{Binds: tc.binds})
 			assert.Equal(t, tc.expectedBinds, hostConf.Binds)
 		})
 	}
@@ -337,16 +338,16 @@ func TestMergeJobOptions(t *testing.T) {
 	for _, testCase := range []struct {
 		name       string
 		options    string
-		config     *container.Config
-		hostConfig *container.HostConfig
+		config     *dockercontainer.Config
+		hostConfig *dockercontainer.HostConfig
 	}{
 		{
 			name:    "Ok",
 			options: `--volume /frob:/nitz --volume somevolume --tmpfs /tmp:exec,noatime --hostname alternatehost --health-cmd "healthz one"  --health-interval 10s --health-timeout 5s --health-retries 3 --health-start-period 30s`,
-			config: &container.Config{
+			config: &dockercontainer.Config{
 				Volumes:  map[string]struct{}{"somevolume": {}},
 				Hostname: "alternatehost",
-				Healthcheck: &container.HealthConfig{
+				Healthcheck: &dockercontainer.HealthConfig{
 					Test:        []string{"CMD-SHELL", "healthz one"},
 					Interval:    10 * time.Second,
 					Timeout:     5 * time.Second,
@@ -354,7 +355,7 @@ func TestMergeJobOptions(t *testing.T) {
 					Retries:     3,
 				},
 			},
-			hostConfig: &container.HostConfig{
+			hostConfig: &dockercontainer.HostConfig{
 				Binds: []string{"/frob:/nitz"},
 				Tmpfs: map[string]string{"/tmp": "exec,noatime"},
 			},
@@ -362,37 +363,37 @@ func TestMergeJobOptions(t *testing.T) {
 		{
 			name:    "DisableHealthCheck",
 			options: `--no-healthcheck`,
-			config: &container.Config{
-				Healthcheck: &container.HealthConfig{
+			config: &dockercontainer.Config{
+				Healthcheck: &dockercontainer.HealthConfig{
 					Test: []string{"NONE"},
 				},
 			},
-			hostConfig: &container.HostConfig{},
+			hostConfig: &dockercontainer.HostConfig{},
 		},
 		{
 			name:       "Ignore",
 			options:    "--pid=host --device=/dev/sda",
-			config:     &container.Config{},
-			hostConfig: &container.HostConfig{},
+			config:     &dockercontainer.Config{},
+			hostConfig: &dockercontainer.HostConfig{},
 		},
 		{
 			name:    "MergeUserAndGroupAdd",
 			options: "--user asdf --user root --group-add group1 --group-add wheel --group-add system --group-add wheel --group-add group1",
-			config: &container.Config{
+			config: &dockercontainer.Config{
 				User: "root",
 			},
-			hostConfig: &container.HostConfig{
+			hostConfig: &dockercontainer.HostConfig{
 				GroupAdd: []string{"group1", "wheel", "system"},
 			},
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			cr := &containerReference{
-				input: &NewContainerInput{
+				input: &container.NewContainerInput{
 					JobOptions: testCase.options,
 				},
 			}
-			config, hostConfig, err := cr.mergeJobOptions(t.Context(), &container.Config{}, &container.HostConfig{})
+			config, hostConfig, err := cr.mergeJobOptions(t.Context(), &dockercontainer.Config{}, &dockercontainer.HostConfig{})
 			require.NoError(t, err)
 			assert.EqualValues(t, testCase.config, config)
 			assert.EqualValues(t, testCase.hostConfig, hostConfig)
@@ -403,23 +404,23 @@ func TestMergeJobOptions(t *testing.T) {
 func TestDockerRun_isHealthy(t *testing.T) {
 	cr := containerReference{
 		id: "containerid",
-		input: &NewContainerInput{
+		input: &container.NewContainerInput{
 			NetworkAliases: []string{"servicename"},
 		},
 	}
 	ctx := t.Context()
-	makeInspectResponse := func(interval time.Duration, status container.HealthStatus, test []string) container.InspectResponse {
-		return container.InspectResponse{
-			Config: &container.Config{
+	makeInspectResponse := func(interval time.Duration, status dockercontainer.HealthStatus, test []string) dockercontainer.InspectResponse {
+		return dockercontainer.InspectResponse{
+			Config: &dockercontainer.Config{
 				Image: "example.com/some/image",
-				Healthcheck: &container.HealthConfig{
+				Healthcheck: &dockercontainer.HealthConfig{
 					Interval: interval,
 					Test:     test,
 				},
 			},
-			ContainerJSONBase: &container.ContainerJSONBase{
-				State: &container.State{
-					Health: &container.Health{
+			ContainerJSONBase: &dockercontainer.ContainerJSONBase{
+				State: &dockercontainer.State{
+					Health: &dockercontainer.Health{
 						Status: status,
 					},
 				},
@@ -428,19 +429,19 @@ func TestDockerRun_isHealthy(t *testing.T) {
 	}
 
 	t.Run("IncompleteResponseOrNoHealthCheck", func(t *testing.T) {
-		wait, err := cr.isHealthy(ctx, container.InspectResponse{})
+		wait, err := cr.isHealthy(ctx, dockercontainer.InspectResponse{})
 		assert.Zero(t, wait)
 		assert.NoError(t, err)
 
 		// --no-healthcheck translates into a NONE test command
-		resp := makeInspectResponse(0, container.NoHealthcheck, []string{"NONE"})
+		resp := makeInspectResponse(0, dockercontainer.NoHealthcheck, []string{"NONE"})
 		wait, err = cr.isHealthy(ctx, resp)
 		assert.Zero(t, wait)
 		assert.NoError(t, err)
 	})
 
 	t.Run("StartingUndefinedIntervalIsNotZero", func(t *testing.T) {
-		resp := makeInspectResponse(0, container.Starting, nil)
+		resp := makeInspectResponse(0, dockercontainer.Starting, nil)
 		wait, err := cr.isHealthy(ctx, resp)
 		assert.NotZero(t, wait)
 		assert.NoError(t, err)
@@ -448,28 +449,28 @@ func TestDockerRun_isHealthy(t *testing.T) {
 
 	t.Run("StartingWithInterval", func(t *testing.T) {
 		expectedWait := time.Duration(42)
-		resp := makeInspectResponse(expectedWait, container.Starting, nil)
+		resp := makeInspectResponse(expectedWait, dockercontainer.Starting, nil)
 		actualWait, err := cr.isHealthy(ctx, resp)
 		assert.Equal(t, expectedWait, actualWait)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Unhealthy", func(t *testing.T) {
-		resp := makeInspectResponse(0, container.Unhealthy, nil)
+		resp := makeInspectResponse(0, dockercontainer.Unhealthy, nil)
 		wait, err := cr.isHealthy(ctx, resp)
 		assert.Zero(t, wait)
 		assert.ErrorContains(t, err, "is not healthy")
 	})
 
 	t.Run("Healthy", func(t *testing.T) {
-		resp := makeInspectResponse(0, container.Healthy, nil)
+		resp := makeInspectResponse(0, dockercontainer.Healthy, nil)
 		wait, err := cr.isHealthy(ctx, resp)
 		assert.Zero(t, wait)
 		assert.NoError(t, err)
 	})
 
 	t.Run("UnknownStatus", func(t *testing.T) {
-		resp := makeInspectResponse(0, container.NoHealthcheck, nil)
+		resp := makeInspectResponse(0, dockercontainer.NoHealthcheck, nil)
 		wait, err := cr.isHealthy(ctx, resp)
 		assert.Zero(t, wait)
 		assert.ErrorContains(t, err, "unexpected")

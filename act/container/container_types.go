@@ -75,20 +75,3 @@ type Container interface {
 	IsHealthy(ctx context.Context) (time.Duration, error)
 }
 
-// NewDockerBuildExecutorInput the input for the NewDockerBuildExecutor function
-type NewDockerBuildExecutorInput struct {
-	ContextDir   string
-	Dockerfile   string
-	BuildContext io.Reader
-	ImageTag     string
-	Platform     string
-}
-
-// NewDockerPullExecutorInput the input for the NewDockerPullExecutor function
-type NewDockerPullExecutorInput struct {
-	Image     string
-	ForcePull bool
-	Platform  string
-	Username  string
-	Password  string
-}

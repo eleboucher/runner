@@ -1,4 +1,4 @@
-package container
+package docker
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"code.forgejo.org/forgejo/runner/v12/act/container"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -69,12 +71,12 @@ func TestContainerPath(t *testing.T) {
 }
 
 type typeAssertMockContainer struct {
-	Container
+	container.Container
 	LinuxContainerEnvironmentExtensions
 }
 
 // Type assert Container + LinuxContainerEnvironmentExtensions implements ExecutionsEnvironment
-var _ ExecutionsEnvironment = &typeAssertMockContainer{}
+var _ container.ExecutionsEnvironment = &typeAssertMockContainer{}
 
 func TestLinuxContainerEnvironmentExtensions_BackendID(t *testing.T) {
 	ext := &LinuxContainerEnvironmentExtensions{}
