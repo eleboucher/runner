@@ -18,11 +18,13 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 	"code.forgejo.org/forgejo/runner/v12/act/container"
+	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/exprparser"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
 	"github.com/docker/docker/api/types/network"
@@ -56,6 +58,22 @@ type RunContext struct {
 	randomName          string
 	networkName         string
 	networkCreated      bool
+	dockerEndpointMu    sync.Mutex
+	dockerEndpoint      docker.Endpoint
+}
+
+func (rc *RunContext) DockerEndpoint(ctx context.Context) (docker.Endpoint, error) {
+	rc.dockerEndpointMu.Lock()
+	defer rc.dockerEndpointMu.Unlock()
+	if rc.dockerEndpoint != nil {
+		return rc.dockerEndpoint, nil
+	}
+	ep, err := docker.NewEndpoint(ctx, os.Getenv("DOCKER_HOST"))
+	if err != nil {
+		return nil, err
+	}
+	rc.dockerEndpoint = ep
+	return ep, nil
 }
 
 func (rc *RunContext) AddMask(mask string) {
@@ -146,7 +164,7 @@ func (rc *RunContext) GetBindsAndMounts(ctx context.Context) ([]string, map[stri
 		binds = append(binds, fmt.Sprintf("%s:%s", daemonPath, "/var/run/docker.sock"))
 	}
 
-	ext := container.LinuxContainerEnvironmentExtensions{}
+	ext := docker.LinuxContainerEnvironmentExtensions{}
 
 	mounts := map[string]string{
 		rc.getInternalVolumeEnv(ctx): ext.GetActPath(),
@@ -474,6 +492,11 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		return true
 	})
 
+	ep, err := rc.DockerEndpoint(ctx)
+	if err != nil {
+		return err
+	}
+
 	username, password, err := rc.handleCredentials(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to handle credentials: %s", err)
@@ -489,11 +512,11 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", rc.getToolCache(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
-	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", container.RunnerArch(ctx)))
+	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", ep.RunnerArch()))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
 	envList = append(envList, fmt.Sprintf("%s=%s", "LANG", "C.UTF-8")) // Use same locale as GitHub Actions
 
-	ext := container.LinuxContainerEnvironmentExtensions{}
+	ext := docker.LinuxContainerEnvironmentExtensions{}
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
 
 	// add service containers
@@ -554,7 +577,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		}
 
 		serviceContainerName := createContainerName(rc.jobContainerName(), serviceID)
-		c := container.NewContainer(&container.NewContainerInput{
+		c := docker.NewContainer(ep, &container.NewContainerInput{
 			Name:            serviceContainerName,
 			Image:           interpolatedImage,
 			Username:        username,
@@ -595,7 +618,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 
 		if rc.JobContainer != nil {
 			return rc.JobContainer.Remove().IfNot(reuseJobContainer).
-				Then(container.NewDockerVolumesRemoveExecutor(rc.getInternalVolumeNames(ctx))).IfNot(reuseJobContainer).
+				Then(docker.NewDockerVolumesRemoveExecutor(ep, rc.getInternalVolumeNames(ctx))).IfNot(reuseJobContainer).
 				Then(func(ctx context.Context) error {
 					if len(rc.ServiceContainers) > 0 {
 						logger.Infof("Cleaning up services for job %s", rc.JobName)
@@ -605,7 +628,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 					}
 					if rc.getNetworkCreated(ctx) {
 						logger.Infof("Cleaning up network for job %s, and network name is: %s", rc.JobName, rc.getNetworkName(ctx))
-						if err := container.NewDockerNetworkRemoveExecutor(rc.getNetworkName(ctx))(ctx); err != nil {
+						if err := docker.NewDockerNetworkRemoveExecutor(ep, rc.getNetworkName(ctx))(ctx); err != nil {
 							logger.Errorf("Error while cleaning network: %v", err)
 						}
 					}
@@ -625,7 +648,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		return spec.WithTTY(false)
 	})
 
-	rc.JobContainer = container.NewContainer(&container.NewContainerInput{
+	rc.JobContainer = docker.NewContainer(ep, &container.NewContainerInput{
 		Cmd:             nil,
 		Entrypoint:      entrypoint,
 		Init:            enableInit,
@@ -663,6 +686,10 @@ func (rc *RunContext) startJobContainer() common.Executor {
 		if err := rc.prepareJobContainer(ctx); err != nil {
 			return err
 		}
+		ep, err := rc.DockerEndpoint(ctx)
+		if err != nil {
+			return err
+		}
 		networkConfig := network.CreateOptions{
 			Driver:     "bridge",
 			Scope:      "local",
@@ -672,7 +699,7 @@ func (rc *RunContext) startJobContainer() common.Executor {
 			rc.pullServicesImages(rc.Config.ForcePull),
 			rc.JobContainer.Pull(rc.Config.ForcePull),
 			rc.stopJobContainer(),
-			container.NewDockerNetworkCreateExecutor(rc.getNetworkName(ctx), &networkConfig).IfBool(!rc.IsHostEnv(ctx) && rc.Config.ContainerNetworkMode == ""), // if the value of `ContainerNetworkMode` is empty string, then will create a new network for containers.
+			docker.NewDockerNetworkCreateExecutor(ep, rc.getNetworkName(ctx), &networkConfig).IfBool(!rc.IsHostEnv(ctx) && rc.Config.ContainerNetworkMode == ""), // if the value of `ContainerNetworkMode` is empty string, then will create a new network for containers.
 			rc.startServiceContainers(rc.getNetworkName(ctx)),
 			rc.JobContainer.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
 			rc.JobContainer.Start(false),
@@ -950,7 +977,16 @@ func (rc *RunContext) stopContainer() common.Executor {
 func (rc *RunContext) closeContainer() common.Executor {
 	return func(ctx context.Context) error {
 		if rc.JobContainer != nil {
-			return rc.JobContainer.Close()(ctx)
+			if err := rc.JobContainer.Close()(ctx); err != nil {
+				return err
+			}
+		}
+		rc.dockerEndpointMu.Lock()
+		ep := rc.dockerEndpoint
+		rc.dockerEndpoint = nil
+		rc.dockerEndpointMu.Unlock()
+		if ep != nil {
+			return ep.Close()
 		}
 		return nil
 	}

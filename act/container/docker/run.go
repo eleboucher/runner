@@ -1,6 +1,6 @@
 //go:build !WITHOUT_DOCKER && (linux || darwin || windows || freebsd || openbsd)
 
-package container
+package docker
 
 import (
 	"archive/tar"
@@ -24,12 +24,10 @@ import (
 	"github.com/avast/retry-go/v4"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/cli/cli/compose/loader"
-	"github.com/docker/cli/cli/connhelper"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
@@ -41,12 +39,14 @@ import (
 	"golang.org/x/term"
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
+	actcontainer "code.forgejo.org/forgejo/runner/v12/act/container"
 	"code.forgejo.org/forgejo/runner/v12/act/filecollector"
 )
 
 // NewContainer creates a reference to a container
-var NewContainer = func(input *NewContainerInput) ExecutionsEnvironment {
+var NewContainer = func(ep Endpoint, input *actcontainer.NewContainerInput) actcontainer.ExecutionsEnvironment {
 	cr := new(containerReference)
+	cr.endpoint = ep
 	cr.input = input
 	cr.toolCache = input.ToolCache
 	return cr
@@ -68,12 +68,8 @@ func (cr *containerReference) platform(ctx context.Context) (string, error) {
 
 	if platform == "" {
 		// cr.input.DefaultPlatform wasn't provided, --platform wasn't provided, fallback to the system platform
-		defaultPlatform, err := CurrentSystemPlatform(ctx)
-		if err != nil {
-			return "", err
-		}
-		platform = defaultPlatform
-		common.Logger(ctx).Debugf("platform not specified, defaulting to detected %s", defaultPlatform)
+		platform = cr.endpoint.CurrentSystemPlatform()
+		common.Logger(ctx).Debugf("platform not specified, defaulting to detected %s", platform)
 	}
 
 	cr.calculatedPlatform = platform
@@ -168,7 +164,7 @@ func (cr *containerReference) Pull(forcePull bool) common.Executor {
 			return err
 		}
 
-		return NewDockerPullExecutor(NewDockerPullExecutorInput{
+		return NewDockerPullExecutor(cr.endpoint, NewDockerPullExecutorInput{
 			Image:     cr.input.Image,
 			ForcePull: forcePull,
 			Platform:  platform,
@@ -178,7 +174,7 @@ func (cr *containerReference) Pull(forcePull bool) common.Executor {
 	}
 }
 
-func (cr *containerReference) Copy(destPath string, files ...*FileEntry) common.Executor {
+func (cr *containerReference) Copy(destPath string, files ...*actcontainer.FileEntry) common.Executor {
 	return common.NewPipelineExecutor(
 		cr.connect(),
 		cr.find(),
@@ -209,7 +205,7 @@ func (cr *containerReference) GetContainerArchive(ctx context.Context, srcPath s
 }
 
 func (cr *containerReference) UpdateFromEnv(srcPath string, env *map[string]string) common.Executor {
-	return parseEnvFile(cr, srcPath, env).IfNot(common.Dryrun)
+	return actcontainer.ParseEnvFile(cr, srcPath, env).IfNot(common.Dryrun)
 }
 
 func (cr *containerReference) UpdateFromImageEnv(env *map[string]string) common.Executor {
@@ -288,99 +284,25 @@ func (cr *containerReference) ReplaceLogWriter(stdout, stderr io.Writer) (io.Wri
 type containerReference struct {
 	cli                client.APIClient
 	id                 string
-	input              *NewContainerInput
+	input              *actcontainer.NewContainerInput
 	UID                int
 	GID                int
 	calculatedPlatform string
 	LinuxContainerEnvironmentExtensions
 }
 
-func GetDockerClient(ctx context.Context) (cli client.APIClient, err error) {
-	dockerHost := os.Getenv("DOCKER_HOST")
-
-	if strings.HasPrefix(dockerHost, "ssh://") {
-		var helper *connhelper.ConnectionHelper
-
-		helper, err = connhelper.GetConnectionHelper(dockerHost)
-		if err != nil {
-			return nil, err
-		}
-		cli, err = client.NewClientWithOpts(
-			client.WithHost(helper.Host),
-			client.WithDialContext(helper.Dialer),
-		)
-	} else {
-		cli, err = client.NewClientWithOpts(client.FromEnv)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to docker daemon: %w", err)
-	}
-	cli.NegotiateAPIVersion(ctx)
-
-	return cli, nil
-}
-
-func GetHostInfo(ctx context.Context) (info system.Info, err error) {
-	var cli client.APIClient
-	cli, err = GetDockerClient(ctx)
-	if err != nil {
-		return info, err
-	}
-	defer cli.Close()
-
-	info, err = cli.Info(ctx)
-	if err != nil {
-		return info, err
-	}
-
-	return info, nil
-}
-
-// Arch fetches values from docker info and translates architecture to
-// GitHub actions compatible runner.arch values
-// https://github.com/github/docs/blob/main/data/reusables/actions/runner-arch-description.md
-func RunnerArch(ctx context.Context) string {
-	info, err := GetHostInfo(ctx)
-	if err != nil {
-		return ""
-	}
-
-	archMapper := map[string]string{
-		"x86_64":  "X64",
-		"amd64":   "X64",
-		"386":     "X86",
-		"aarch64": "ARM64",
-		"arm64":   "ARM64",
-	}
-	if arch, ok := archMapper[info.Architecture]; ok {
-		return arch
-	}
-	return info.Architecture
-}
-
 func (cr *containerReference) connect() common.Executor {
-	return func(ctx context.Context) error {
-		if cr.cli != nil {
-			return nil
+	return func(_ context.Context) error {
+		if cr.cli == nil {
+			cr.cli = cr.endpoint.Client()
 		}
-		cli, err := GetDockerClient(ctx)
-		if err != nil {
-			return err
-		}
-		cr.cli = cli
 		return nil
 	}
 }
 
 func (cr *containerReference) Close() common.Executor {
-	return func(ctx context.Context) error {
-		if cr.cli != nil {
-			err := cr.cli.Close()
-			cr.cli = nil
-			if err != nil {
-				return fmt.Errorf("failed to close client: %w", err)
-			}
-		}
+	return func(_ context.Context) error {
+		cr.cli = nil
 		return nil
 	}
 }
@@ -1028,7 +950,7 @@ func (cr *containerReference) copyDir(dstPath, srcPath string, useGitIgnore bool
 	}
 }
 
-func (cr *containerReference) copyContent(dstPath string, files ...*FileEntry) common.Executor {
+func (cr *containerReference) copyContent(dstPath string, files ...*actcontainer.FileEntry) common.Executor {
 	return func(ctx context.Context) error {
 		logger := common.Logger(ctx)
 		var buf bytes.Buffer

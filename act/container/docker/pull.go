@@ -1,6 +1,6 @@
 //go:build !WITHOUT_DOCKER && (linux || darwin || windows || freebsd || openbsd)
 
-package container
+package docker
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"sync/atomic"
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/image"
@@ -19,43 +18,8 @@ import (
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 )
 
-// atomic isn't "really" needed, but its used to avoid the data race detector causing errors.
-var cachedSystemPlatform atomic.Pointer[string]
-
-func CurrentSystemPlatform(ctx context.Context) (string, error) {
-	lastCache := cachedSystemPlatform.Load()
-	if lastCache != nil {
-		return *lastCache, nil
-	}
-
-	cli, err := GetDockerClient(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer cli.Close()
-
-	info, err := cli.Info(ctx)
-	if err != nil {
-		return "", fmt.Errorf("unable to get docker info to determine current system architecture: %w", err)
-	}
-
-	os := info.OSType
-	arch := info.Architecture
-	// Bizarrely `docker info` doesn't provide architecture with the same commonly used values for image tagging...
-	switch arch {
-	case "x86_64":
-		arch = "amd64"
-	case "aarch64":
-		arch = "arm64"
-	}
-
-	systemPlatform := fmt.Sprintf("%s/%s", os, arch)
-	cachedSystemPlatform.Store(&systemPlatform)
-	return systemPlatform, nil
-}
-
 // NewDockerPullExecutor function to create a run executor for the container
-func NewDockerPullExecutor(input NewDockerPullExecutorInput) common.Executor {
+func NewDockerPullExecutor(ep Endpoint, input NewDockerPullExecutorInput) common.Executor {
 	return func(ctx context.Context) error {
 		logger := common.Logger(ctx)
 
@@ -69,7 +33,7 @@ func NewDockerPullExecutor(input NewDockerPullExecutorInput) common.Executor {
 			return nil
 		}
 
-		imageExists, err := ImageExistsLocally(ctx, input.Image, input.Platform)
+		imageExists, err := ImageExistsLocally(ctx, ep, input.Image, input.Platform)
 		logger.Debugf("Image exists? %v", imageExists)
 		if err != nil {
 			return fmt.Errorf("unable to determine if image already exists for image '%s' (%s): %w", input.Image, input.Platform, err)
@@ -85,11 +49,7 @@ func NewDockerPullExecutor(input NewDockerPullExecutorInput) common.Executor {
 		imageRef := cleanImage(ctx, input.Image)
 		logger.Debugf("pulling image '%v' (%s)", imageRef, input.Platform)
 
-		cli, err := GetDockerClient(ctx)
-		if err != nil {
-			return err
-		}
-		defer cli.Close()
+		cli := ep.Client()
 
 		imagePullOptions, err := getImagePullOptions(ctx, input)
 		if err != nil {

@@ -1,6 +1,6 @@
 //go:build !WITHOUT_DOCKER && (linux || darwin || windows || freebsd || openbsd)
 
-package container
+package docker
 
 import (
 	"context"
@@ -9,13 +9,9 @@ import (
 	"github.com/docker/docker/api/types/network"
 )
 
-func NewDockerNetworkCreateExecutor(name string, config *network.CreateOptions) common.Executor {
+func NewDockerNetworkCreateExecutor(ep Endpoint, name string, config *network.CreateOptions) common.Executor {
 	return func(ctx context.Context) error {
-		cli, err := GetDockerClient(ctx)
-		if err != nil {
-			return err
-		}
-		defer cli.Close()
+		cli := ep.Client()
 
 		// Only create the network if it doesn't exist
 		networks, err := cli.NetworkList(ctx, network.ListOptions{})
@@ -38,13 +34,9 @@ func NewDockerNetworkCreateExecutor(name string, config *network.CreateOptions) 
 	}
 }
 
-func NewDockerNetworkRemoveExecutor(name string) common.Executor {
+func NewDockerNetworkRemoveExecutor(ep Endpoint, name string) common.Executor {
 	return func(ctx context.Context) error {
-		cli, err := GetDockerClient(ctx)
-		if err != nil {
-			return err
-		}
-		defer cli.Close()
+		cli := ep.Client()
 
 		// Make shure that all network of the specified name are removed
 		// cli.NetworkRemove refuses to remove a network if there are duplicates
@@ -59,17 +51,15 @@ func NewDockerNetworkRemoveExecutor(name string) common.Executor {
 				if err != nil {
 					return err
 				}
-
-				if len(result.Containers) == 0 {
-					if err = cli.NetworkRemove(ctx, net.ID); err != nil {
-						common.Logger(ctx).Debugf("%v", err)
-					}
-				} else {
+				if len(result.Containers) != 0 {
 					common.Logger(ctx).Debugf("Refusing to remove network %v because it still has active endpoints", name)
+					continue
+				}
+				if err := cli.NetworkRemove(ctx, net.ID); err != nil {
+					return err
 				}
 			}
 		}
-
-		return err
+		return nil
 	}
 }

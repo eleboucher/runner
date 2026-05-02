@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
-	"code.forgejo.org/forgejo/runner/v12/act/container"
+	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
 	"github.com/sirupsen/logrus"
 )
@@ -154,7 +154,10 @@ func newJobExecutor(info jobInfo, sf stepFactory, rc *RunContext) common.Executo
 		if rc.JobContainer != nil && !rc.JobContainer.ManagesOwnNetworking() && rc.getNetworkCreated(ctx) {
 			networkName := rc.getNetworkName(ctx)
 			logger.Debugf("Cleaning up network %s for job %s", networkName, rc.jobContainerName())
-			if err := container.NewDockerNetworkRemoveExecutor(networkName)(ctx); err != nil {
+			ep, epErr := rc.DockerEndpoint(ctx)
+			if epErr != nil {
+				logger.Errorf("Error while cleaning network %s: %v", networkName, epErr)
+			} else if err := docker.NewDockerNetworkRemoveExecutor(ep, networkName)(ctx); err != nil {
 				logger.Errorf("Error while cleaning network %s: %v", networkName, err)
 			}
 		}

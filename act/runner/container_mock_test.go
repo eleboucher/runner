@@ -6,13 +6,14 @@ import (
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 	"code.forgejo.org/forgejo/runner/v12/act/container"
+	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"github.com/stretchr/testify/mock"
 )
 
 type containerMock struct {
 	mock.Mock
 	container.Container
-	container.LinuxContainerEnvironmentExtensions
+	docker.LinuxContainerEnvironmentExtensions
 }
 
 func (cm *containerMock) Create(capAdd, capDrop []string) common.Executor {

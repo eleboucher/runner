@@ -8,7 +8,7 @@
 //
 
 //nolint:unparam,errcheck,unused
-package container
+package docker
 
 import (
 	"bytes"

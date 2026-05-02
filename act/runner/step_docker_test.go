@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"code.forgejo.org/forgejo/runner/v12/act/container"
+	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,7 +20,7 @@ func TestStepDockerMain(t *testing.T) {
 
 	// mock the new container call
 	origContainerNewContainer := ContainerNewContainer
-	ContainerNewContainer = func(containerInput *container.NewContainerInput) container.ExecutionsEnvironment {
+	ContainerNewContainer = func(_ docker.Endpoint, containerInput *container.NewContainerInput) container.ExecutionsEnvironment {
 		input = containerInput
 		return cm
 	}
@@ -120,7 +121,7 @@ func TestStepDockerNetworkConfiguration(t *testing.T) {
 	var input *container.NewContainerInput
 
 	origContainerNewContainer := ContainerNewContainer
-	ContainerNewContainer = func(containerInput *container.NewContainerInput) container.ExecutionsEnvironment {
+	ContainerNewContainer = func(_ docker.Endpoint, containerInput *container.NewContainerInput) container.ExecutionsEnvironment {
 		input = containerInput
 		return &containerMock{}
 	}
@@ -155,7 +156,7 @@ func TestStepDockerNetworkConfiguration(t *testing.T) {
 	}
 
 	// Call newStepContainer directly to test network configuration
-	_ = sd.newStepContainer(ctx, "alpine:latest", nil, nil)
+	_ = sd.newStepContainer(ctx, nil, "alpine:latest", nil, nil)
 
 	// Verify network configuration
 	// NetworkMode should use rc.getNetworkName() instead of container:jobContainerName

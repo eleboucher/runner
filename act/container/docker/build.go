@@ -1,6 +1,6 @@
 //go:build !WITHOUT_DOCKER && (linux || darwin || windows || freebsd || openbsd)
 
-package container
+package docker
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 )
 
 // NewDockerBuildExecutor function to create a run executor for the container
-func NewDockerBuildExecutor(input NewDockerBuildExecutorInput) common.Executor {
+func NewDockerBuildExecutor(ep Endpoint, input NewDockerBuildExecutorInput) common.Executor {
 	return func(ctx context.Context) error {
 		logger := common.Logger(ctx)
 		if input.Platform != "" {
@@ -31,11 +31,7 @@ func NewDockerBuildExecutor(input NewDockerBuildExecutorInput) common.Executor {
 			return nil
 		}
 
-		cli, err := GetDockerClient(ctx)
-		if err != nil {
-			return err
-		}
-		defer cli.Close()
+		cli := ep.Client()
 
 		logger.Debugf("Building image from '%v'", input.ContextDir)
 
@@ -47,7 +43,10 @@ func NewDockerBuildExecutor(input NewDockerBuildExecutorInput) common.Executor {
 			AuthConfigs: LoadDockerAuthConfigs(ctx),
 			Dockerfile:  input.Dockerfile,
 		}
-		var buildContext io.ReadCloser
+		var (
+			buildContext io.ReadCloser
+			err          error
+		)
 		if input.BuildContext != nil {
 			buildContext = io.NopCloser(input.BuildContext)
 		} else {

@@ -1,6 +1,6 @@
 //go:build !WITHOUT_DOCKER && (linux || darwin || windows || freebsd || openbsd)
 
-package container
+package docker
 
 import (
 	"context"
@@ -28,14 +28,10 @@ func parsePlatform(platform string) (*v1.Platform, error) {
 
 // ImageExistsLocally returns a boolean indicating if an image with the
 // requested name, tag and architecture exists in the local docker image store
-func ImageExistsLocally(ctx context.Context, imageName, platform string) (bool, error) {
+func ImageExistsLocally(ctx context.Context, ep Endpoint, imageName, platform string) (bool, error) {
 	logger := common.Logger(ctx)
 
-	cli, err := GetDockerClient(ctx)
-	if err != nil {
-		return false, err
-	}
-	defer cli.Close()
+	cli := ep.Client()
 
 	if supportsImageInspectPlatform(ctx, cli) {
 		platSpecs, err := parsePlatform(platform)
@@ -72,12 +68,8 @@ func ImageExistsLocally(ctx context.Context, imageName, platform string) (bool, 
 
 // RemoveImage removes image from local store, the function is used to run different
 // container image architectures
-func RemoveImage(ctx context.Context, imageName string, force, pruneChildren bool) (bool, error) {
-	cli, err := GetDockerClient(ctx)
-	if err != nil {
-		return false, err
-	}
-	defer cli.Close()
+func RemoveImage(ctx context.Context, ep Endpoint, imageName string, force, pruneChildren bool) (bool, error) {
+	cli := ep.Client()
 
 	inspectImage, err := cli.ImageInspect(ctx, imageName)
 	if cerrdefs.IsNotFound(err) {

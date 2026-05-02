@@ -18,6 +18,7 @@ import (
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 	"code.forgejo.org/forgejo/runner/v12/act/container"
+	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
 )
 
@@ -287,13 +288,14 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 
 	action := step.getActionModel()
 
+	ep, err := rc.DockerEndpoint(ctx)
+	if err != nil {
+		return err
+	}
+
 	targetPlatform := rc.Config.ContainerArchitecture
 	if targetPlatform == "" {
-		currentSystemPlatform, err := container.CurrentSystemPlatform(ctx)
-		if err != nil {
-			return fmt.Errorf("unable to evaluate current system architecture: %w", err)
-		}
-		targetPlatform = currentSystemPlatform
+		targetPlatform = ep.CurrentSystemPlatform()
 	}
 
 	// Construct the full location path
@@ -317,7 +319,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 		}
 		contextDir, fileName := filepath.Split(filepath.Join(location, action.Runs.Image))
 
-		imageExists, err := container.ImageExistsLocally(ctx, image, targetPlatform)
+		imageExists, err := docker.ImageExistsLocally(ctx, ep, image, targetPlatform)
 		if err != nil {
 			return err
 		}
@@ -332,7 +334,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 				}
 				defer buildContext.Close()
 			}
-			prepImage = container.NewDockerBuildExecutor(container.NewDockerBuildExecutorInput{
+			prepImage = docker.NewDockerBuildExecutor(ep, docker.NewDockerBuildExecutorInput{
 				ContextDir:   contextDir,
 				Dockerfile:   fileName,
 				ImageTag:     image,
@@ -374,7 +376,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 			entrypoint = nil
 		}
 	}
-	stepContainer := newStepContainer(ctx, step, image, cmd, entrypoint, targetPlatform)
+	stepContainer := newStepContainer(ctx, ep, step, image, cmd, entrypoint, targetPlatform)
 	return common.NewPipelineExecutor(
 		prepImage,
 		stepContainer.Pull(forcePull),
@@ -415,7 +417,7 @@ func evalDockerArgs(ctx context.Context, step step, action *model.Action, cmd *[
 	}
 }
 
-func newStepContainer(ctx context.Context, step step, image string, cmd, entrypoint []string, targetPlatform string) container.Container {
+func newStepContainer(ctx context.Context, ep docker.Endpoint, step step, image string, cmd, entrypoint []string, targetPlatform string) container.Container {
 	rc := step.getRunContext()
 	stepModel := step.getStepModel()
 	rawLogger := common.Logger(ctx).WithField("raw_output", true)
@@ -434,7 +436,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", rc.getToolCache(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
-	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", container.RunnerArch(ctx)))
+	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", ep.RunnerArch()))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
 
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
@@ -442,7 +444,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 	if rc.JobContainer.ManagesOwnNetworking() {
 		networkMode = "default"
 	}
-	stepContainer := container.NewContainer(&container.NewContainerInput{
+	stepContainer := docker.NewContainer(ep, &container.NewContainerInput{
 		Cmd:             cmd,
 		Entrypoint:      entrypoint,
 		WorkingDir:      rc.JobContainer.ToContainerPath(rc.Config.Workdir),

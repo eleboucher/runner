@@ -7,7 +7,7 @@
 //
 
 //nolint:unparam,gocritic
-package container
+package docker
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-package container
+package docker
 
 import (
 	"bufio"
@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
+	actcontainer "code.forgejo.org/forgejo/runner/v12/act/container"
 	"gotest.tools/v3/skip"
 
 	"github.com/docker/docker/api/types"
@@ -30,11 +32,12 @@ func TestDocker(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 	ctx := t.Context()
-	client, err := GetDockerClient(ctx)
+	ep, err := NewEndpoint(ctx, os.Getenv("DOCKER_HOST"))
 	assert.NoError(t, err)
-	defer client.Close()
+	defer ep.Close()
+	cli := ep.Client()
 
-	dockerBuild := NewDockerBuildExecutor(NewDockerBuildExecutorInput{
+	dockerBuild := NewDockerBuildExecutor(ep, NewDockerBuildExecutorInput{
 		ContextDir: "testdata",
 		ImageTag:   "envmergetest",
 	})
@@ -43,8 +46,8 @@ func TestDocker(t *testing.T) {
 	assert.NoError(t, err)
 
 	cr := &containerReference{
-		cli: client,
-		input: &NewContainerInput{
+		cli: cli,
+		input: &actcontainer.NewContainerInput{
 			Image: "envmergetest",
 		},
 	}
@@ -132,7 +135,7 @@ func TestDockerExecAbort(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &actcontainer.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -173,7 +176,7 @@ func TestDockerExecFailure(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &actcontainer.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -196,7 +199,7 @@ func TestDockerCopyTarStream(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &actcontainer.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -220,7 +223,7 @@ func TestDockerCopyTarStreamErrorInCopyFiles(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &actcontainer.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -245,7 +248,7 @@ func TestDockerCopyTarStreamErrorInMkdir(t *testing.T) {
 	cr := &containerReference{
 		id:  "123",
 		cli: client,
-		input: &NewContainerInput{
+		input: &actcontainer.NewContainerInput{
 			Image: "image",
 		},
 	}
@@ -257,8 +260,8 @@ func TestDockerCopyTarStreamErrorInMkdir(t *testing.T) {
 	client.AssertExpectations(t)
 }
 
-// Type assert containerReference implements ExecutionsEnvironment
-var _ ExecutionsEnvironment = &containerReference{}
+// Type assert containerReference implements actcontainer.ExecutionsEnvironment
+var _ actcontainer.ExecutionsEnvironment = &containerReference{}
 
 func TestCheckVolumes(t *testing.T) {
 	testCases := []struct {
@@ -323,7 +326,7 @@ func TestCheckVolumes(t *testing.T) {
 			logger, _ := test.NewNullLogger()
 			ctx := common.WithLogger(t.Context(), logger)
 			cr := &containerReference{
-				input: &NewContainerInput{
+				input: &actcontainer.NewContainerInput{
 					ValidVolumes: tc.validVolumes,
 				},
 			}
@@ -388,7 +391,7 @@ func TestMergeJobOptions(t *testing.T) {
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			cr := &containerReference{
-				input: &NewContainerInput{
+				input: &actcontainer.NewContainerInput{
 					JobOptions: testCase.options,
 				},
 			}
@@ -403,7 +406,7 @@ func TestMergeJobOptions(t *testing.T) {
 func TestDockerRun_isHealthy(t *testing.T) {
 	cr := containerReference{
 		id: "containerid",
-		input: &NewContainerInput{
+		input: &actcontainer.NewContainerInput{
 			NetworkAliases: []string{"servicename"},
 		},
 	}
