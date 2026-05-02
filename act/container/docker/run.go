@@ -297,6 +297,13 @@ type containerReference struct {
 }
 
 func GetDockerClient(ctx context.Context) (cli client.APIClient, err error) {
+	if injected := clientFromCtx(ctx); injected != nil {
+		// A DockerEnv (or other caller) has bound a long-lived client to ctx.
+		// Wrap it so that callers' `defer cli.Close()` does not tear down the
+		// shared connection.
+		return borrowedClient{injected}, nil
+	}
+
 	dockerHost := os.Getenv("DOCKER_HOST")
 
 	if strings.HasPrefix(dockerHost, "ssh://") {
