@@ -18,6 +18,7 @@ import (
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 	"code.forgejo.org/forgejo/runner/v12/act/container"
+	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
 )
 
@@ -289,7 +290,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 
 	targetPlatform := rc.Config.ContainerArchitecture
 	if targetPlatform == "" {
-		currentSystemPlatform, err := container.CurrentSystemPlatform(ctx)
+		currentSystemPlatform, err := docker.CurrentSystemPlatform(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to evaluate current system architecture: %w", err)
 		}
@@ -317,7 +318,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 		}
 		contextDir, fileName := filepath.Split(filepath.Join(location, action.Runs.Image))
 
-		imageExists, err := container.ImageExistsLocally(ctx, image, targetPlatform)
+		imageExists, err := docker.ImageExistsLocally(ctx, image, targetPlatform)
 		if err != nil {
 			return err
 		}
@@ -332,7 +333,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 				}
 				defer buildContext.Close()
 			}
-			prepImage = container.NewDockerBuildExecutor(container.NewDockerBuildExecutorInput{
+			prepImage = docker.NewDockerBuildExecutor(docker.NewDockerBuildExecutorInput{
 				ContextDir:   contextDir,
 				Dockerfile:   fileName,
 				ImageTag:     image,
@@ -434,7 +435,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", rc.getToolCache(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
-	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", container.RunnerArch(ctx)))
+	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", docker.RunnerArch(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
 
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
@@ -442,7 +443,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 	if rc.JobContainer.ManagesOwnNetworking() {
 		networkMode = "default"
 	}
-	stepContainer := container.NewContainer(&container.NewContainerInput{
+	stepContainer := docker.NewContainer(&container.NewContainerInput{
 		Cmd:             cmd,
 		Entrypoint:      entrypoint,
 		WorkingDir:      rc.JobContainer.ToContainerPath(rc.Config.Workdir),

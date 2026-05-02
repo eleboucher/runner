@@ -90,7 +90,7 @@ func TestParseEnvFile(t *testing.T) {
 			container.On("GetContainerArchive", mock.Anything, "src-path").Return(reader, nil)
 
 			env := make(map[string]string)
-			executor := parseEnvFile(container, "src-path", &env)
+			executor := ParseEnvFile(container, "src-path", &env)
 
 			err = executor(t.Context())
 			if tc.errContains == "" {

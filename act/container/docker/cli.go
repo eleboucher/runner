@@ -8,7 +8,7 @@
 //
 
 //nolint:unparam,errcheck,unused
-package container
+package docker
 
 import (
 	"bytes"
@@ -27,7 +27,7 @@ import (
 
 	"github.com/docker/cli/cli/compose/loader"
 	"github.com/docker/cli/opts"
-	"github.com/docker/docker/api/types/container"
+	dockercontainer "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
@@ -316,8 +316,8 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 }
 
 type containerConfig struct {
-	Config           *container.Config
-	HostConfig       *container.HostConfig
+	Config           *dockercontainer.Config
+	HostConfig       *dockercontainer.HostConfig
 	NetworkingConfig *networktypes.NetworkingConfig
 	Platform         string
 }
@@ -462,11 +462,11 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 	// device path (as opposed to during flag parsing), as at the time we are
 	// parsing flags, we haven't yet sent a _ping to the daemon to determine
 	// what operating system it is.
-	deviceMappings := []container.DeviceMapping{}
+	deviceMappings := []dockercontainer.DeviceMapping{}
 	for _, device := range copts.devices.GetSlice() {
 		var (
 			validated     string
-			deviceMapping container.DeviceMapping
+			deviceMapping dockercontainer.DeviceMapping
 			err           error
 		)
 		validated, err = validateDevice(device, serverOS)
@@ -492,22 +492,22 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 		return nil, err
 	}
 
-	pidMode := container.PidMode(copts.pidMode)
+	pidMode := dockercontainer.PidMode(copts.pidMode)
 	if !pidMode.Valid() {
 		return nil, errors.New("--pid: invalid PID mode")
 	}
 
-	utsMode := container.UTSMode(copts.utsMode)
+	utsMode := dockercontainer.UTSMode(copts.utsMode)
 	if !utsMode.Valid() {
 		return nil, errors.New("--uts: invalid UTS mode")
 	}
 
-	usernsMode := container.UsernsMode(copts.usernsMode)
+	usernsMode := dockercontainer.UsernsMode(copts.usernsMode)
 	if !usernsMode.Valid() {
 		return nil, errors.New("--userns: invalid USER mode")
 	}
 
-	cgroupnsMode := container.CgroupnsMode(copts.cgroupnsMode)
+	cgroupnsMode := dockercontainer.CgroupnsMode(copts.cgroupnsMode)
 	if !cgroupnsMode.Valid() {
 		return nil, errors.New("--cgroupns: invalid CGROUP mode")
 	}
@@ -535,7 +535,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 	}
 
 	// Healthcheck
-	var healthConfig *container.HealthConfig
+	var healthConfig *dockercontainer.HealthConfig
 	haveHealthSettings := copts.healthCmd != "" ||
 		copts.healthInterval != 0 ||
 		copts.healthTimeout != 0 ||
@@ -546,7 +546,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 			return nil, errors.New("--no-healthcheck conflicts with --health-* options")
 		}
 		test := strslice.StrSlice{"NONE"}
-		healthConfig = &container.HealthConfig{Test: test}
+		healthConfig = &dockercontainer.HealthConfig{Test: test}
 	} else if haveHealthSettings {
 		var probe strslice.StrSlice
 		if copts.healthCmd != "" {
@@ -566,7 +566,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 			return nil, errors.New("--health-start-period cannot be negative")
 		}
 
-		healthConfig = &container.HealthConfig{
+		healthConfig = &dockercontainer.HealthConfig{
 			Test:        probe,
 			Interval:    copts.healthInterval,
 			Timeout:     copts.healthTimeout,
@@ -575,7 +575,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 		}
 	}
 
-	resources := container.Resources{
+	resources := dockercontainer.Resources{
 		CgroupParent:         copts.cgroupParent,
 		Memory:               copts.memory.Value(),
 		MemoryReservation:    copts.memoryReservation.Value(),
@@ -608,7 +608,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 		DeviceRequests:       copts.gpus.Value(),
 	}
 
-	config := &container.Config{
+	config := &dockercontainer.Config{
 		Hostname:     copts.hostname,
 		Domainname:   copts.domainname,
 		ExposedPorts: ports,
@@ -637,7 +637,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 		config.StopTimeout = &copts.stopTimeout
 	}
 
-	hostConfig := &container.HostConfig{
+	hostConfig := &dockercontainer.HostConfig{
 		Binds:           binds,
 		ContainerIDFile: copts.containerIDFile,
 		OomScoreAdj:     copts.oomScoreAdj,
@@ -656,8 +656,8 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 		DNSOptions:     copts.dnsOptions.GetAllOrEmpty(),
 		ExtraHosts:     copts.extraHosts.GetSlice(),
 		VolumesFrom:    copts.volumesFrom.GetSlice(),
-		IpcMode:        container.IpcMode(copts.ipcMode),
-		NetworkMode:    container.NetworkMode(copts.netMode.NetworkMode()),
+		IpcMode:        dockercontainer.IpcMode(copts.ipcMode),
+		NetworkMode:    dockercontainer.NetworkMode(copts.netMode.NetworkMode()),
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
 		UsernsMode:     usernsMode,
@@ -669,9 +669,9 @@ func parse(flags *pflag.FlagSet, copts *containerOptions, serverOS string) (*con
 		SecurityOpt:    securityOpts,
 		StorageOpt:     storageOpts,
 		ReadonlyRootfs: copts.readonlyRootfs,
-		LogConfig:      container.LogConfig{Type: copts.loggingDriver, Config: loggingOpts},
+		LogConfig:      dockercontainer.LogConfig{Type: copts.loggingDriver, Config: loggingOpts},
 		VolumeDriver:   copts.volumeDriver,
-		Isolation:      container.Isolation(copts.isolation),
+		Isolation:      dockercontainer.Isolation(copts.isolation),
 		ShmSize:        copts.shmSize.Value(),
 		Resources:      resources,
 		Tmpfs:          tmpfs,
@@ -728,7 +728,7 @@ func parseNetworkOpts(copts *containerOptions) (map[string]*networktypes.Endpoin
 
 	for i, n := range copts.netMode.Value() {
 		n := n
-		if container.NetworkMode(n.Target).IsUserDefined() {
+		if dockercontainer.NetworkMode(n.Target).IsUserDefined() {
 			hasUserDefined = true
 		} else {
 			hasNonUserDefined = true
@@ -809,7 +809,7 @@ func parseNetworkAttachmentOpt(ep opts.NetworkAttachmentOpts) (*networktypes.End
 	if strings.TrimSpace(ep.Target) == "" {
 		return nil, errors.New("no name set for network")
 	}
-	if !container.NetworkMode(ep.Target).IsUserDefined() {
+	if !dockercontainer.NetworkMode(ep.Target).IsUserDefined() {
 		if len(ep.Aliases) > 0 {
 			return nil, errors.New("network-scoped aliases are only supported for user-defined networks")
 		}
@@ -926,20 +926,20 @@ func parseStorageOpts(storageOpts []string) (map[string]string, error) {
 	return m, nil
 }
 
-// parseDevice parses a device mapping string to a container.DeviceMapping struct
-func parseDevice(device, serverOS string) (container.DeviceMapping, error) {
+// parseDevice parses a device mapping string to a dockercontainer.DeviceMapping struct
+func parseDevice(device, serverOS string) (dockercontainer.DeviceMapping, error) {
 	switch serverOS {
 	case "linux":
 		return parseLinuxDevice(device)
 	case "windows":
 		return parseWindowsDevice(device)
 	}
-	return container.DeviceMapping{}, fmt.Errorf("unknown server OS: %s", serverOS)
+	return dockercontainer.DeviceMapping{}, fmt.Errorf("unknown server OS: %s", serverOS)
 }
 
-// parseLinuxDevice parses a device mapping string to a container.DeviceMapping struct
+// parseLinuxDevice parses a device mapping string to a dockercontainer.DeviceMapping struct
 // knowing that the target is a Linux daemon
-func parseLinuxDevice(device string) (container.DeviceMapping, error) {
+func parseLinuxDevice(device string) (dockercontainer.DeviceMapping, error) {
 	var src, dst string
 	permissions := "rwm"
 	arr := strings.Split(device, ":")
@@ -957,14 +957,14 @@ func parseLinuxDevice(device string) (container.DeviceMapping, error) {
 	case 1:
 		src = arr[0]
 	default:
-		return container.DeviceMapping{}, fmt.Errorf("invalid device specification: %s", device)
+		return dockercontainer.DeviceMapping{}, fmt.Errorf("invalid device specification: %s", device)
 	}
 
 	if dst == "" {
 		dst = src
 	}
 
-	deviceMapping := container.DeviceMapping{
+	deviceMapping := dockercontainer.DeviceMapping{
 		PathOnHost:        src,
 		PathInContainer:   dst,
 		CgroupPermissions: permissions,
@@ -972,10 +972,10 @@ func parseLinuxDevice(device string) (container.DeviceMapping, error) {
 	return deviceMapping, nil
 }
 
-// parseWindowsDevice parses a device mapping string to a container.DeviceMapping struct
+// parseWindowsDevice parses a device mapping string to a dockercontainer.DeviceMapping struct
 // knowing that the target is a Windows daemon
-func parseWindowsDevice(device string) (container.DeviceMapping, error) {
-	return container.DeviceMapping{PathOnHost: device}, nil
+func parseWindowsDevice(device string) (dockercontainer.DeviceMapping, error) {
+	return dockercontainer.DeviceMapping{PathOnHost: device}, nil
 }
 
 // validateDeviceCgroupRule validates a device cgroup rule string format

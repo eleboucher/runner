@@ -7,7 +7,7 @@
 //
 
 //nolint:unparam,gocritic
-package container
+package docker
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
+	dockercontainer "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/spf13/pflag"
@@ -53,7 +53,7 @@ func TestValidateAttach(t *testing.T) {
 	}
 }
 
-func parseRun(args []string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
+func parseRun(args []string) (*dockercontainer.Config, *dockercontainer.HostConfig, *networktypes.NetworkingConfig, error) {
 	flags, copts := setupRunFlags()
 	if err := flags.Parse(args); err != nil {
 		return nil, nil, nil, err
@@ -74,7 +74,7 @@ func setupRunFlags() (*pflag.FlagSet, *containerOptions) {
 	return flags, copts
 }
 
-func mustParse(t *testing.T, args string) (*container.Config, *container.HostConfig) {
+func mustParse(t *testing.T, args string) (*dockercontainer.Config, *dockercontainer.HostConfig) {
 	t.Helper()
 	config, hostConfig, _, err := parseRun(append(strings.Split(args, " "), "ubuntu", "bash"))
 	assert.NilError(t, err)
@@ -96,18 +96,18 @@ func TestParseRunLinks(t *testing.T) {
 func TestParseRunAttach(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected container.Config
+		expected dockercontainer.Config
 	}{
 		{
 			input: "",
-			expected: container.Config{
+			expected: dockercontainer.Config{
 				AttachStdout: true,
 				AttachStderr: true,
 			},
 		},
 		{
 			input: "-i",
-			expected: container.Config{
+			expected: dockercontainer.Config{
 				AttachStdin:  true,
 				AttachStdout: true,
 				AttachStderr: true,
@@ -115,20 +115,20 @@ func TestParseRunAttach(t *testing.T) {
 		},
 		{
 			input: "-a stdin",
-			expected: container.Config{
+			expected: dockercontainer.Config{
 				AttachStdin: true,
 			},
 		},
 		{
 			input: "-a stdin -a stdout",
-			expected: container.Config{
+			expected: dockercontainer.Config{
 				AttachStdin:  true,
 				AttachStdout: true,
 			},
 		},
 		{
 			input: "-a stdin -a stdout -a stderr",
-			expected: container.Config{
+			expected: dockercontainer.Config{
 				AttachStdin:  true,
 				AttachStdout: true,
 				AttachStderr: true,
@@ -425,7 +425,7 @@ func TestParseWithExpose(t *testing.T) {
 
 func TestParseDevice(t *testing.T) {
 	skip.If(t, runtime.GOOS != "linux") // Windows and macOS validate server-side
-	valids := map[string]container.DeviceMapping{
+	valids := map[string]dockercontainer.DeviceMapping{
 		"/dev/snd": {
 			PathOnHost:        "/dev/snd",
 			PathInContainer:   "/dev/snd",
@@ -466,20 +466,20 @@ func TestParseNetworkConfig(t *testing.T) {
 		name        string
 		flags       []string
 		expected    map[string]*networktypes.EndpointSettings
-		expectedCfg container.HostConfig
+		expectedCfg dockercontainer.HostConfig
 		expectedErr string
 	}{
 		{
 			name:        "single-network-legacy",
 			flags:       []string{"--network", "net1"},
 			expected:    map[string]*networktypes.EndpointSettings{},
-			expectedCfg: container.HostConfig{NetworkMode: "net1"},
+			expectedCfg: dockercontainer.HostConfig{NetworkMode: "net1"},
 		},
 		{
 			name:        "single-network-advanced",
 			flags:       []string{"--network", "name=net1"},
 			expected:    map[string]*networktypes.EndpointSettings{},
-			expectedCfg: container.HostConfig{NetworkMode: "net1"},
+			expectedCfg: dockercontainer.HostConfig{NetworkMode: "net1"},
 		},
 		{
 			name: "single-network-legacy-with-options",
@@ -505,7 +505,7 @@ func TestParseNetworkConfig(t *testing.T) {
 					Aliases: []string{"web1", "web2"},
 				},
 			},
-			expectedCfg: container.HostConfig{NetworkMode: "net1"},
+			expectedCfg: dockercontainer.HostConfig{NetworkMode: "net1"},
 		},
 		{
 			name: "multiple-network-advanced-mixed",
@@ -543,7 +543,7 @@ func TestParseNetworkConfig(t *testing.T) {
 					Aliases: []string{"web3"},
 				},
 			},
-			expectedCfg: container.HostConfig{NetworkMode: "net1"},
+			expectedCfg: dockercontainer.HostConfig{NetworkMode: "net1"},
 		},
 		{
 			name:  "single-network-advanced-with-options",
@@ -561,13 +561,13 @@ func TestParseNetworkConfig(t *testing.T) {
 					Aliases: []string{"web1", "web2"},
 				},
 			},
-			expectedCfg: container.HostConfig{NetworkMode: "net1"},
+			expectedCfg: dockercontainer.HostConfig{NetworkMode: "net1"},
 		},
 		{
 			name:        "multiple-networks",
 			flags:       []string{"--network", "net1", "--network", "name=net2"},
 			expected:    map[string]*networktypes.EndpointSettings{"net1": {}, "net2": {}},
-			expectedCfg: container.HostConfig{NetworkMode: "net1"},
+			expectedCfg: dockercontainer.HostConfig{NetworkMode: "net1"},
 		},
 		{
 			name:        "conflict-network",
@@ -662,7 +662,7 @@ func TestParseRestartPolicy(t *testing.T) {
 		"always:2:3":         "invalid restart policy format: maximum retry count must be an integer",
 		"on-failure:invalid": "invalid restart policy format: maximum retry count must be an integer",
 	}
-	valids := map[string]container.RestartPolicy{
+	valids := map[string]dockercontainer.RestartPolicy{
 		"": {},
 		"always": {
 			Name:              "always",
@@ -698,7 +698,7 @@ func TestParseRestartPolicyAutoRemove(t *testing.T) {
 }
 
 func TestParseHealth(t *testing.T) {
-	checkOk := func(args ...string) *container.HealthConfig {
+	checkOk := func(args ...string) *dockercontainer.HealthConfig {
 		config, _, _, err := parseRun(args)
 		if err != nil {
 			t.Fatalf("%#v: %v", args, err)

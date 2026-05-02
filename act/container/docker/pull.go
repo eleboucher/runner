@@ -1,6 +1,6 @@
 //go:build !WITHOUT_DOCKER && (linux || darwin || windows || freebsd || openbsd)
 
-package container
+package docker
 
 import (
 	"context"
@@ -18,6 +18,15 @@ import (
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 )
+
+// NewDockerPullExecutorInput is the input for NewDockerPullExecutor.
+type NewDockerPullExecutorInput struct {
+	Image     string
+	ForcePull bool
+	Platform  string
+	Username  string
+	Password  string
+}
 
 // atomic isn't "really" needed, but its used to avoid the data race detector causing errors.
 var cachedSystemPlatform atomic.Pointer[string]
