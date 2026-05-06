@@ -62,6 +62,14 @@ type Env struct {
 	cli client.APIClient
 }
 
+// Hosting is implemented by ExecutionsEnvironment values bound to a
+// specific Docker daemon. The runner type-asserts on it so services,
+// networks, volumes, and step containers land on the same daemon as the
+// job container.
+type Hosting interface {
+	DockerEnv() *Env
+}
+
 // Open dials the daemon at endpoint with the supplied TLS material. An empty
 // endpoint resolves the daemon from the process environment (DOCKER_HOST,
 // default unix socket, ssh:// shortcut). TLS on an ssh:// endpoint is

@@ -7,7 +7,6 @@ import (
 
 	"code.forgejo.org/forgejo/runner/v12/act/common"
 	"code.forgejo.org/forgejo/runner/v12/act/container"
-	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
 	"github.com/kballard/go-shellquote"
 )
@@ -90,8 +89,6 @@ func (sd *stepDocker) runUsesContainer() common.Executor {
 	}
 }
 
-var ContainerNewContainer = docker.NewContainer
-
 func (sd *stepDocker) newStepContainer(ctx context.Context, image string, cmd, entrypoint []string) container.Container {
 	rc := sd.RunContext
 	step := sd.Step
@@ -112,11 +109,11 @@ func (sd *stepDocker) newStepContainer(ctx context.Context, image string, cmd, e
 
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", rc.getToolCache(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
-	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", docker.RunnerArch(ctx)))
+	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", rc.runnerArch(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
 
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
-	stepContainer := ContainerNewContainer(&container.NewContainerInput{
+	stepContainer := rc.newContainer(&container.NewContainerInput{
 		Cmd:             cmd,
 		Entrypoint:      entrypoint,
 		WorkingDir:      rc.JobContainer.ToContainerPath(rc.Config.Workdir),

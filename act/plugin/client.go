@@ -186,6 +186,9 @@ func (c *Client) Capabilities() *pluginv1.CapabilitiesResponse {
 }
 
 func (c *Client) NewEnvironment(input *container.NewContainerInput, backendOpts map[string]string) container.ExecutionsEnvironment {
+	if c.caps.GetDelegatesToDocker() {
+		return newDockerDelegateEnvironment(c.rpc, c.caps, input, backendOpts)
+	}
 	return &pluginEnvironment{
 		client:      c.rpc,
 		caps:        c.caps,

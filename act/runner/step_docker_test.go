@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"code.forgejo.org/forgejo/runner/v12/act/container"
+	"code.forgejo.org/forgejo/runner/v12/act/container/docker"
 	"code.forgejo.org/forgejo/runner/v12/act/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -17,15 +18,12 @@ func TestStepDockerMain(t *testing.T) {
 
 	var input *container.NewContainerInput
 
-	// mock the new container call
-	origContainerNewContainer := ContainerNewContainer
-	ContainerNewContainer = func(containerInput *container.NewContainerInput) container.ExecutionsEnvironment {
+	origNewContainer := docker.NewContainer
+	docker.NewContainer = func(containerInput *container.NewContainerInput) container.ExecutionsEnvironment {
 		input = containerInput
 		return cm
 	}
-	defer func() {
-		ContainerNewContainer = origContainerNewContainer
-	}()
+	defer func() { docker.NewContainer = origNewContainer }()
 
 	ctx := t.Context()
 
@@ -119,14 +117,12 @@ func TestStepDockerPrePost(t *testing.T) {
 func TestStepDockerNetworkConfiguration(t *testing.T) {
 	var input *container.NewContainerInput
 
-	origContainerNewContainer := ContainerNewContainer
-	ContainerNewContainer = func(containerInput *container.NewContainerInput) container.ExecutionsEnvironment {
+	origNewContainer := docker.NewContainer
+	docker.NewContainer = func(containerInput *container.NewContainerInput) container.ExecutionsEnvironment {
 		input = containerInput
 		return &containerMock{}
 	}
-	defer func() {
-		ContainerNewContainer = origContainerNewContainer
-	}()
+	defer func() { docker.NewContainer = origNewContainer }()
 
 	ctx := t.Context()
 

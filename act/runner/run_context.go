@@ -491,7 +491,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", rc.getToolCache(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
-	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", docker.RunnerArch(ctx)))
+	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", rc.runnerArch(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
 	envList = append(envList, fmt.Sprintf("%s=%s", "LANG", "C.UTF-8")) // Use same locale as GitHub Actions
 
@@ -556,7 +556,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		}
 
 		serviceContainerName := createContainerName(rc.jobContainerName(), serviceID)
-		c := docker.NewContainer(&container.NewContainerInput{
+		c := rc.newContainer(&container.NewContainerInput{
 			Name:            serviceContainerName,
 			Image:           interpolatedImage,
 			Username:        username,
@@ -597,7 +597,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 
 		if rc.JobContainer != nil {
 			return rc.JobContainer.Remove().IfNot(reuseJobContainer).
-				Then(docker.NewDockerVolumesRemoveExecutor(rc.getInternalVolumeNames(ctx))).IfNot(reuseJobContainer).
+				Then(rc.newVolumesRemoveExecutor(rc.getInternalVolumeNames(ctx))).IfNot(reuseJobContainer).
 				Then(func(ctx context.Context) error {
 					if len(rc.ServiceContainers) > 0 {
 						logger.Infof("Cleaning up services for job %s", rc.JobName)
@@ -607,7 +607,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 					}
 					if rc.getNetworkCreated(ctx) {
 						logger.Infof("Cleaning up network for job %s, and network name is: %s", rc.JobName, rc.getNetworkName(ctx))
-						if err := docker.NewDockerNetworkRemoveExecutor(rc.getNetworkName(ctx))(ctx); err != nil {
+						if err := rc.newNetworkRemoveExecutor(rc.getNetworkName(ctx))(ctx); err != nil {
 							logger.Errorf("Error while cleaning network: %v", err)
 						}
 					}
@@ -674,7 +674,7 @@ func (rc *RunContext) startJobContainer() common.Executor {
 			rc.pullServicesImages(rc.Config.ForcePull),
 			rc.JobContainer.Pull(rc.Config.ForcePull),
 			rc.stopJobContainer(),
-			docker.NewDockerNetworkCreateExecutor(rc.getNetworkName(ctx), &networkConfig).IfBool(!rc.IsHostEnv(ctx) && rc.Config.ContainerNetworkMode == ""), // if the value of `ContainerNetworkMode` is empty string, then will create a new network for containers.
+			rc.newNetworkCreateExecutor(rc.getNetworkName(ctx), &networkConfig).IfBool(!rc.IsHostEnv(ctx) && rc.Config.ContainerNetworkMode == ""), // if the value of `ContainerNetworkMode` is empty string, then will create a new network for containers.
 			rc.startServiceContainers(rc.getNetworkName(ctx)),
 			rc.JobContainer.Create(rc.Config.ContainerCapAdd, rc.Config.ContainerCapDrop),
 			rc.JobContainer.Start(false),

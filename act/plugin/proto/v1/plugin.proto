@@ -58,6 +58,12 @@ message CapabilitiesResponse {
   bool environment_case_insensitive = 11;
   map<string, string> runner_context = 12;
   bool supports_local_copy = 13;
+  // delegates_to_docker indicates the plugin only manages an execution
+  // environment lifecycle and exposes a Docker daemon endpoint for the
+  // runner to drive containers against. When true, the runner ignores
+  // Exec/CopyIn/CopyLocal/CopyOut/UpdateEnv/IsHealthy on this plugin and
+  // talks directly to the daemon returned in CreateResponse.delegate.
+  bool delegates_to_docker = 14;
 }
 
 
@@ -84,6 +90,24 @@ message CreateRequest {
 
 message CreateResponse {
   string environment_id = 1;
+  // delegate is set iff CapabilitiesResponse.delegates_to_docker is true.
+  // Carries the Docker daemon endpoint and TLS material the runner uses
+  // to drive containers inside the plugin-managed environment.
+  DockerDelegate delegate = 2;
+}
+
+// DockerDelegate carries the address and TLS material for a Docker daemon
+// running inside (or proxied by) the plugin-managed execution environment.
+// All bytes fields are PEM-encoded.
+message DockerDelegate {
+  // endpoint accepts unix:///path, tcp://host:port, or ssh:// addresses.
+  string endpoint = 1;
+  bytes tls_ca = 2;
+  bytes tls_cert = 3;
+  bytes tls_key = 4;
+  // tls_insecure_skip_verify disables certificate verification. Intended
+  // for development and bootstrap scenarios with self-signed daemons.
+  bool tls_insecure_skip_verify = 5;
 }
 
 

@@ -318,7 +318,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 		}
 		contextDir, fileName := filepath.Split(filepath.Join(location, action.Runs.Image))
 
-		imageExists, err := docker.ImageExistsLocally(ctx, image, targetPlatform)
+		imageExists, err := rc.imageExistsLocally(ctx, image, targetPlatform)
 		if err != nil {
 			return err
 		}
@@ -333,7 +333,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 				}
 				defer buildContext.Close()
 			}
-			prepImage = docker.NewDockerBuildExecutor(docker.NewDockerBuildExecutorInput{
+			prepImage = rc.newDockerBuildExecutor(docker.NewDockerBuildExecutorInput{
 				ContextDir:   contextDir,
 				Dockerfile:   fileName,
 				ImageTag:     image,
@@ -435,7 +435,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", rc.getToolCache(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
-	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", docker.RunnerArch(ctx)))
+	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", rc.runnerArch(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
 
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
@@ -443,7 +443,7 @@ func newStepContainer(ctx context.Context, step step, image string, cmd, entrypo
 	if rc.JobContainer.ManagesOwnNetworking() {
 		networkMode = "default"
 	}
-	stepContainer := docker.NewContainer(&container.NewContainerInput{
+	stepContainer := rc.newContainer(&container.NewContainerInput{
 		Cmd:             cmd,
 		Entrypoint:      entrypoint,
 		WorkingDir:      rc.JobContainer.ToContainerPath(rc.Config.Workdir),

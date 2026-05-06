@@ -74,4 +74,3 @@ type Container interface {
 	ReplaceLogWriter(io.Writer, io.Writer) (io.Writer, io.Writer)
 	IsHealthy(ctx context.Context) (time.Duration, error)
 }
-
