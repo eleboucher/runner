@@ -1,0 +1,69 @@
+name: Build and push container images
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build-images:
+    runs-on: multiarch
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@v5
+
+      - uses: https://data.forgejo.org/docker/setup-buildx-action@v3
+
+      - name: Login to code.forgejo.org
+        uses: https://data.forgejo.org/docker/login-action@v3
+        with:
+          registry: code.forgejo.org
+          username: ${{ vars.USERNAME }}
+          password: ${{ secrets.CODEBERG_TOKEN }}
+
+      - name: Login to ghcr.io
+        uses: https://data.forgejo.org/docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ vars.USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Login to git.erwanleboucher.dev
+        uses: https://data.forgejo.org/docker/login-action@v3
+        with:
+          registry: git.erwanleboucher.dev
+          username: ${{ vars.USERNAME }}
+          password: ${{ secrets.OWNER_TOKEN }}
+
+      - name: Login to registry.erwanleboucher.dev
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: https://data.forgejo.org/docker/login-action@v3
+        with:
+          registry: registry.erwanleboucher.dev
+          username: ${{ vars.USERNAME }}
+          password: ${{ secrets.APOCI_REGISTRY_TOKEN }}
+
+      - name: Compute image metadata
+        id: meta
+        uses: https://data.forgejo.org/docker/metadata-action@v5
+        with:
+          images: |
+            name=code.forgejo.org/${{ vars.USERNAME }}/runner
+            name=ghcr.io/${{ vars.USERNAME }}/runner
+            name=git.erwanleboucher.dev/${{ vars.USERNAME }}/runner
+            name=registry.erwanleboucher.dev/${{ vars.USERNAME }}/runner,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: https://data.forgejo.org/docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
