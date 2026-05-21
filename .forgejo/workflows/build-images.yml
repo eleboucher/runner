@@ -36,14 +36,23 @@ jobs:
           username: ${{ vars.USERNAME }}
           password: ${{ secrets.OWNER_TOKEN }}
 
+      - name: Login to registry.erwanleboucher.dev
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: https://data.forgejo.org/docker/login-action@v3
+        with:
+          registry: registry.erwanleboucher.dev
+          username: ${{ vars.USERNAME }}
+          password: ${{ secrets.APOCI_REGISTRY_TOKEN }}
+
       - name: Compute image metadata
         id: meta
         uses: https://data.forgejo.org/docker/metadata-action@v5
         with:
           images: |
-            code.forgejo.org/${{ vars.USERNAME }}/runner
-            ghcr.io/${{ vars.USERNAME }}/runner
-            git.erwanleboucher.dev/${{ vars.USERNAME }}/runner
+            name=code.forgejo.org/${{ vars.USERNAME }}/runner
+            name=ghcr.io/${{ vars.USERNAME }}/runner
+            name=git.erwanleboucher.dev/${{ vars.USERNAME }}/runner
+            name=registry.erwanleboucher.dev/${{ vars.USERNAME }}/runner,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=long
