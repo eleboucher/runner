@@ -145,6 +145,9 @@ func (p *pluginEnvironment) Create(capAdd, capDrop []string) common.Executor {
 		if err != nil {
 			return fmt.Errorf("plugin create: %w", err)
 		}
+		if resp.GetDelegate() != nil {
+			return fmt.Errorf("plugin returned a Docker delegate but did not declare delegates_to_docker")
+		}
 		p.envID = resp.GetEnvironmentId()
 		return nil
 	}

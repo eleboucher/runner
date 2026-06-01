@@ -164,7 +164,13 @@ func transportCredentials(isUnix bool, cfg *clientOptions) (credentials.Transpor
 	}
 }
 
+// ProtocolVersion is the plugin protocol this runner speaks.
+const ProtocolVersion uint32 = 1
+
 func validateCapabilities(caps *pluginv1.CapabilitiesResponse) error {
+	if v := caps.GetProtocolVersion(); v != ProtocolVersion {
+		return fmt.Errorf("unsupported plugin protocol version %d (runner speaks %d)", v, ProtocolVersion)
+	}
 	missing := []string{}
 	if caps.GetName() == "" {
 		missing = append(missing, "name")

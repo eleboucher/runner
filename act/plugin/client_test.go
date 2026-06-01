@@ -45,7 +45,7 @@ func TestNewClient_RejectsPlainTCPByDefault(t *testing.T) {
 func TestNewClient_AcceptsTCPWithAllowPlainTCP(t *testing.T) {
 	srv := grpc.NewServer()
 	pluginv1.RegisterBackendPluginServer(srv, &healthOnlyServer{
-		caps: &pluginv1.CapabilitiesResponse{Name: "tcp", RootPath: "/r", ActPath: "/r/act"},
+		caps: &pluginv1.CapabilitiesResponse{ProtocolVersion: ProtocolVersion, Name: "tcp", RootPath: "/r", ActPath: "/r/act"},
 	})
 	lis := startListener(t, srv, grpc_health_v1.HealthCheckResponse_SERVING)
 
@@ -77,7 +77,7 @@ func TestNewClient_RejectsNotServingHealth(t *testing.T) {
 func TestNewClient_RejectsIncompleteCapabilities(t *testing.T) {
 	srv := grpc.NewServer()
 	pluginv1.RegisterBackendPluginServer(srv, &healthOnlyServer{
-		caps: &pluginv1.CapabilitiesResponse{Name: "incomplete"},
+		caps: &pluginv1.CapabilitiesResponse{ProtocolVersion: ProtocolVersion, Name: "incomplete"},
 	})
 	lis := startListener(t, srv, grpc_health_v1.HealthCheckResponse_SERVING)
 
@@ -86,4 +86,16 @@ func TestNewClient_RejectsIncompleteCapabilities(t *testing.T) {
 	assert.Contains(t, err.Error(), "missing required fields")
 	assert.Contains(t, err.Error(), "root_path")
 	assert.Contains(t, err.Error(), "act_path")
+}
+
+func TestNewClient_RejectsUnsupportedProtocolVersion(t *testing.T) {
+	srv := grpc.NewServer()
+	pluginv1.RegisterBackendPluginServer(srv, &healthOnlyServer{
+		caps: &pluginv1.CapabilitiesResponse{ProtocolVersion: ProtocolVersion + 1, Name: "x", RootPath: "/r", ActPath: "/r/act"},
+	})
+	lis := startListener(t, srv, grpc_health_v1.HealthCheckResponse_SERVING)
+
+	_, err := NewClient(t.Context(), lis.Addr().String(), WithAllowPlainTCP())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported plugin protocol version")
 }

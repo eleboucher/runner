@@ -64,6 +64,10 @@ message CapabilitiesResponse {
   // Exec/CopyIn/CopyLocal/CopyOut/UpdateEnv/IsHealthy on this plugin and
   // talks directly to the daemon returned in CreateResponse.delegate.
   bool delegates_to_docker = 14;
+
+  // protocol_version is the plugin protocol the server speaks. The runner
+  // rejects a plugin whose version it does not support.
+  uint32 protocol_version = 15;
 }
 
 

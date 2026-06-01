@@ -125,8 +125,11 @@ type CapabilitiesResponse struct {
 	// Exec/CopyIn/CopyLocal/CopyOut/UpdateEnv/IsHealthy on this plugin and
 	// talks directly to the daemon returned in CreateResponse.delegate.
 	DelegatesToDocker bool `protobuf:"varint,14,opt,name=delegates_to_docker,json=delegatesToDocker,proto3" json:"delegates_to_docker,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// protocol_version is the plugin protocol the server speaks. The runner
+	// rejects a plugin whose version it does not support.
+	ProtocolVersion uint32 `protobuf:"varint,15,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CapabilitiesResponse) Reset() {
@@ -255,6 +258,13 @@ func (x *CapabilitiesResponse) GetDelegatesToDocker() bool {
 		return x.DelegatesToDocker
 	}
 	return false
+}
+
+func (x *CapabilitiesResponse) GetProtocolVersion() uint32 {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return 0
 }
 
 type ServiceContainer struct {
@@ -1381,7 +1391,7 @@ var File_plugin_proto protoreflect.FileDescriptor
 const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\fplugin.proto\x12\tplugin.v1\x1a\x1egoogle/protobuf/duration.proto\"\x15\n" +
-	"\x13CapabilitiesRequest\"\x80\x06\n" +
+	"\x13CapabilitiesRequest\"\xab\x06\n" +
 	"\x14CapabilitiesResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
 	"\troot_path\x18\x02 \x01(\tR\brootPath\x12\x19\n" +
@@ -1397,7 +1407,8 @@ const file_plugin_proto_rawDesc = "" +
 	"\x1cenvironment_case_insensitive\x18\v \x01(\bR\x1aenvironmentCaseInsensitive\x12Y\n" +
 	"\x0erunner_context\x18\f \x03(\v22.plugin.v1.CapabilitiesResponse.RunnerContextEntryR\rrunnerContext\x12.\n" +
 	"\x13supports_local_copy\x18\r \x01(\bR\x11supportsLocalCopy\x12.\n" +
-	"\x13delegates_to_docker\x18\x0e \x01(\bR\x11delegatesToDocker\x1a@\n" +
+	"\x13delegates_to_docker\x18\x0e \x01(\bR\x11delegatesToDocker\x12)\n" +
+	"\x10protocol_version\x18\x0f \x01(\rR\x0fprotocolVersion\x1a@\n" +
 	"\x12RunnerContextEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc2\x01\n" +

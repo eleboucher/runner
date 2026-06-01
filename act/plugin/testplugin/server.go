@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"code.forgejo.org/forgejo/runner/v12/act/plugin"
 	pluginv1 "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -67,6 +68,7 @@ func resolvePath(env *environment, p string) string {
 
 func (s *Server) Capabilities(_ context.Context, _ *pluginv1.CapabilitiesRequest) (*pluginv1.CapabilitiesResponse, error) {
 	return &pluginv1.CapabilitiesResponse{
+		ProtocolVersion:            plugin.ProtocolVersion,
 		Name:                       "test",
 		RootPath:                   "/shared",
 		ActPath:                    "/shared/act",
