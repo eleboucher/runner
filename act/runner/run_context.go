@@ -496,6 +496,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	xe := docker.NewExecutionEnvironment(ep)
 
 	username, password, err := rc.handleCredentials(ctx)
 	if err != nil {
@@ -577,7 +578,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		}
 
 		serviceContainerName := createContainerName(rc.jobContainerName(), serviceID)
-		c := docker.NewContainer(ep, &container.NewContainerInput{
+		c := xe.NewServiceContainer(&container.NewContainerInput{
 			Name:            serviceContainerName,
 			Image:           interpolatedImage,
 			Username:        username,
@@ -648,7 +649,7 @@ func (rc *RunContext) prepareJobContainer(ctx context.Context) error {
 		return spec.WithTTY(false)
 	})
 
-	rc.JobContainer = docker.NewContainer(ep, &container.NewContainerInput{
+	rc.JobContainer = xe.NewJobContainer(&container.NewContainerInput{
 		Cmd:             nil,
 		Entrypoint:      entrypoint,
 		Init:            enableInit,
