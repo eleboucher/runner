@@ -1026,6 +1026,9 @@ func (rc *RunContext) runPluginEnvironment(ctx context.Context, _ string, plugin
 		Stderr:     logWriter,
 	}, opts)
 
+	if len(rc.Run.Job().Services) > 0 && !caps.GetSupportsServiceContainers() {
+		return fmt.Errorf("plugin %q does not support service containers but the job declares %d", caps.GetName(), len(rc.Run.Job().Services))
+	}
 	if adder, ok := env.(container.ServiceAdder); ok {
 		for serviceID, spec := range rc.Run.Job().Services {
 			interpolatedImage := rc.ExprEval.Interpolate(ctx, spec.Image)
