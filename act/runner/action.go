@@ -376,7 +376,7 @@ func execAsDocker(ctx context.Context, step actionStep, actionName, basedir, sub
 			entrypoint = nil
 		}
 	}
-	stepContainer := newStepContainer(ctx, ep, step, image, cmd, entrypoint, targetPlatform)
+	stepContainer := newStepContainer(ctx, docker.NewExecutionEnvironment(ep), step, image, cmd, entrypoint, targetPlatform)
 	return common.NewPipelineExecutor(
 		prepImage,
 		stepContainer.Pull(forcePull),
@@ -417,7 +417,7 @@ func evalDockerArgs(ctx context.Context, step step, action *model.Action, cmd *[
 	}
 }
 
-func newStepContainer(ctx context.Context, ep docker.Endpoint, step step, image string, cmd, entrypoint []string, targetPlatform string) container.Container {
+func newStepContainer(ctx context.Context, xe *docker.ExecutionEnvironment, step step, image string, cmd, entrypoint []string, targetPlatform string) container.Container {
 	rc := step.getRunContext()
 	stepModel := step.getStepModel()
 	rawLogger := common.Logger(ctx).WithField("raw_output", true)
@@ -436,7 +436,7 @@ func newStepContainer(ctx context.Context, ep docker.Endpoint, step step, image 
 
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", rc.getToolCache(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
-	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", ep.RunnerArch()))
+	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", xe.Endpoint().RunnerArch()))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
 
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
@@ -444,7 +444,7 @@ func newStepContainer(ctx context.Context, ep docker.Endpoint, step step, image 
 	if rc.JobContainer.ManagesOwnNetworking() {
 		networkMode = "default"
 	}
-	stepContainer := docker.NewContainer(ep, &container.NewContainerInput{
+	stepContainer := xe.NewStepContainer(&container.NewContainerInput{
 		Cmd:             cmd,
 		Entrypoint:      entrypoint,
 		WorkingDir:      rc.JobContainer.ToContainerPath(rc.Config.Workdir),
