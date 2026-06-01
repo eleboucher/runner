@@ -82,7 +82,7 @@ func (sd *stepDocker) runUsesContainer() common.Executor {
 			return err
 		}
 
-		stepContainer := sd.newStepContainer(ctx, ep, image, cmd, entrypoint)
+		stepContainer := sd.newStepContainer(ctx, docker.NewExecutionEnvironment(ep), image, cmd, entrypoint)
 
 		return common.NewPipelineExecutor(
 			stepContainer.Pull(rc.Config.ForcePull),
@@ -95,9 +95,7 @@ func (sd *stepDocker) runUsesContainer() common.Executor {
 	}
 }
 
-var ContainerNewContainer = docker.NewContainer
-
-func (sd *stepDocker) newStepContainer(ctx context.Context, ep docker.Endpoint, image string, cmd, entrypoint []string) container.Container {
+func (sd *stepDocker) newStepContainer(ctx context.Context, xe *docker.ExecutionEnvironment, image string, cmd, entrypoint []string) container.Container {
 	rc := sd.RunContext
 	step := sd.Step
 
@@ -117,11 +115,11 @@ func (sd *stepDocker) newStepContainer(ctx context.Context, ep docker.Endpoint, 
 
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TOOL_CACHE", rc.getToolCache(ctx)))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_OS", "Linux"))
-	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", ep.RunnerArch()))
+	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_ARCH", xe.Endpoint().RunnerArch()))
 	envList = append(envList, fmt.Sprintf("%s=%s", "RUNNER_TEMP", "/tmp"))
 
 	binds, mounts, validVolumes := rc.GetBindsAndMounts(ctx)
-	stepContainer := ContainerNewContainer(ep, &container.NewContainerInput{
+	stepContainer := xe.NewStepContainer(&container.NewContainerInput{
 		Cmd:             cmd,
 		Entrypoint:      entrypoint,
 		WorkingDir:      rc.JobContainer.ToContainerPath(rc.Config.Workdir),

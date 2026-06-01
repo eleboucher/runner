@@ -50,6 +50,33 @@ func NewContainer(ep Endpoint, input *actcontainer.NewContainerInput) actcontain
 	return nil
 }
 
+// ExecutionEnvironment mirrors the real type so the runner builds without Docker.
+type ExecutionEnvironment struct {
+	ep Endpoint
+}
+
+// NewExecutionEnvironment binds an ExecutionEnvironment to a daemon Endpoint.
+func NewExecutionEnvironment(ep Endpoint) *ExecutionEnvironment {
+	return &ExecutionEnvironment{ep: ep}
+}
+
+// Endpoint returns the daemon these containers run against.
+func (x *ExecutionEnvironment) Endpoint() Endpoint {
+	return x.ep
+}
+
+func (x *ExecutionEnvironment) NewJobContainer(input *actcontainer.NewContainerInput) actcontainer.ExecutionsEnvironment {
+	return NewContainer(x.ep, input)
+}
+
+func (x *ExecutionEnvironment) NewServiceContainer(input *actcontainer.NewContainerInput) actcontainer.ExecutionsEnvironment {
+	return NewContainer(x.ep, input)
+}
+
+func (x *ExecutionEnvironment) NewStepContainer(input *actcontainer.NewContainerInput) actcontainer.ExecutionsEnvironment {
+	return NewContainer(x.ep, input)
+}
+
 func NewDockerVolumesRemoveExecutor(ep Endpoint, volumeNames []string) common.Executor {
 	return func(ctx context.Context) error {
 		return nil
