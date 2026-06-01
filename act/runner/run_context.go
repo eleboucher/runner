@@ -55,14 +55,21 @@ type RunContext struct {
 	Parent              *RunContext
 	Masks               []string
 	cleanUpJobContainer common.Executor
-	caller              *caller // job calling this RunContext (reusable workflows)
-	randomName          string
-	networkName         string
-	networkCreated      bool
-	dockerEndpointMu    sync.Mutex
-	dockerEndpoint      docker.Endpoint
+	// cleanUpExecutionEnvironment tears down a delegating plug-in's environment
+	// (e.g. its VM). Run after the docker endpoint is closed; nil otherwise.
+	cleanUpExecutionEnvironment common.Executor
+	caller                      *caller // job calling this RunContext (reusable workflows)
+	randomName                  string
+	networkName                 string
+	networkCreated              bool
+	dockerEndpointMu            sync.Mutex
+	dockerEndpoint              docker.Endpoint
 }
 
+// DockerEndpoint returns the Docker daemon the job's containers run against.
+// A delegating plug-in pre-sets it (via setDockerEndpoint) to a daemon it
+// provisioned, such as one inside a VM, so every container lands there.
+// Otherwise it lazily dials the process daemon (DOCKER_HOST).
 func (rc *RunContext) DockerEndpoint(ctx context.Context) (docker.Endpoint, error) {
 	rc.dockerEndpointMu.Lock()
 	defer rc.dockerEndpointMu.Unlock()
@@ -75,6 +82,14 @@ func (rc *RunContext) DockerEndpoint(ctx context.Context) (docker.Endpoint, erro
 	}
 	rc.dockerEndpoint = ep
 	return ep, nil
+}
+
+// setDockerEndpoint binds a pre-dialled daemon (a delegating plug-in's) so
+// DockerEndpoint hands it to every container. closeContainer owns its close.
+func (rc *RunContext) setDockerEndpoint(ep docker.Endpoint) {
+	rc.dockerEndpointMu.Lock()
+	rc.dockerEndpoint = ep
+	rc.dockerEndpointMu.Unlock()
 }
 
 func (rc *RunContext) AddMask(mask string) {
@@ -1056,6 +1071,56 @@ func (rc *RunContext) runPluginEnvironment(ctx context.Context, _ string, plugin
 	)(ctx)
 }
 
+// runDelegatedDockerEnvironment provisions a delegating plug-in's environment
+// (e.g. a VM) and runs the job through the built-in docker back-end against the
+// daemon the plug-in exposed. The plug-in only sees Create and Remove; the
+// runner owns every container call, so services, networks, the job container,
+// and step containers all land on that daemon.
+func (rc *RunContext) runDelegatedDockerEnvironment(ctx context.Context, client *plugin.Client, pluginOpts map[string]string) error {
+	containerName := rc.jobContainerName()
+	rc.Env["JOB_CONTAINER_NAME"] = containerName
+
+	opts := make(map[string]string, len(pluginOpts)+2)
+	maps.Copy(opts, pluginOpts)
+	if labelArg := rc.pluginLabelArg(ctx); labelArg != "" {
+		opts["label_arg"] = labelArg
+	}
+	opts["job_timeout"] = rc.Config.ContainerMaxLifetime.String()
+
+	del, err := client.CreateExecutionEnvironment(ctx, &container.NewContainerInput{
+		Image:      rc.containerImage(ctx),
+		Name:       containerName,
+		WorkingDir: rc.Config.Workdir,
+	}, opts, rc.Config.ForcePull)
+	if err != nil {
+		return err
+	}
+
+	ep, err := docker.Open(ctx, del.Endpoint, dockerTLSFromDelegate(del))
+	if err != nil {
+		_ = client.RemoveExecutionEnvironment(ctx, del.EnvironmentID)
+		return fmt.Errorf("dial delegate %s: %w", del.Endpoint, err)
+	}
+	rc.setDockerEndpoint(ep)
+	rc.cleanUpExecutionEnvironment = func(ctx context.Context) error {
+		return client.RemoveExecutionEnvironment(ctx, del.EnvironmentID)
+	}
+
+	return rc.startJobContainer()(ctx)
+}
+
+func dockerTLSFromDelegate(del *plugin.DelegateEnvironment) *docker.TLSConfig {
+	if len(del.TLSCA) == 0 && len(del.TLSCert) == 0 && len(del.TLSKey) == 0 && !del.TLSInsecureSkipVerify {
+		return nil
+	}
+	return &docker.TLSConfig{
+		CA:                 del.TLSCA,
+		Cert:               del.TLSCert,
+		Key:                del.TLSKey,
+		InsecureSkipVerify: del.TLSInsecureSkipVerify,
+	}
+}
+
 func (rc *RunContext) IsBareHostEnv(ctx context.Context) bool {
 	platform := rc.runsOnImage(ctx)
 	image := rc.containerImage(ctx)
@@ -1108,7 +1173,16 @@ func (rc *RunContext) closeContainer() common.Executor {
 		rc.dockerEndpoint = nil
 		rc.dockerEndpointMu.Unlock()
 		if ep != nil {
-			return ep.Close()
+			if err := ep.Close(); err != nil {
+				return err
+			}
+		}
+		// Tear the plug-in's environment down last: container cleanup and the
+		// endpoint above both talk to its daemon, so it must outlive them.
+		if rc.cleanUpExecutionEnvironment != nil {
+			cleanup := rc.cleanUpExecutionEnvironment
+			rc.cleanUpExecutionEnvironment = nil
+			return cleanup(ctx)
 		}
 		return nil
 	}

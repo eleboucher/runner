@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.1
-// source: act/plugin/proto/v1/plugin.proto
+// source: plugin.proto
 
 package pluginv1
 
@@ -487,5 +487,5 @@ var BackendPlugin_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "act/plugin/proto/v1/plugin.proto",
+	Metadata: "plugin.proto",
 }

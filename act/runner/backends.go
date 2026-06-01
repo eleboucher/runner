@@ -104,6 +104,9 @@ func (p *pluginBackend) CreateExecutionEnvironment(rc *RunContext, _ *LabelConfi
 		if err != nil {
 			return fmt.Errorf("plugin %s: %w", p.id, err)
 		}
+		if client.Capabilities().GetDelegatesToDocker() {
+			return rc.runDelegatedDockerEnvironment(ctx, client, p.options)
+		}
 		return rc.runPluginEnvironment(ctx, string(p.id), client, p.options)
 	}
 }
