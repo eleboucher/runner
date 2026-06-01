@@ -43,7 +43,10 @@ func (t *TLSConfig) httpClient() (*http.Client, error) {
 		}
 		cfg.Certificates = []tls.Certificate{pair}
 	}
-	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr := &http.Transport{}
+	if base, ok := http.DefaultTransport.(*http.Transport); ok {
+		tr = base.Clone()
+	}
 	tr.TLSClientConfig = cfg
 	return &http.Client{Transport: tr}, nil
 }

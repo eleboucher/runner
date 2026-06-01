@@ -1099,8 +1099,10 @@ func (rc *RunContext) runDelegatedDockerEnvironment(ctx context.Context, client 
 
 	ep, err := docker.Open(ctx, del.Endpoint, dockerTLSFromDelegate(del))
 	if err != nil {
-		_ = client.RemoveExecutionEnvironment(ctx, del.EnvironmentID)
-		return fmt.Errorf("dial delegate %s: %w", del.Endpoint, err)
+		// The plug-in already provisioned the environment; surface a failure to
+		// reclaim it rather than leaking it silently.
+		rmErr := client.RemoveExecutionEnvironment(ctx, del.EnvironmentID)
+		return errors.Join(fmt.Errorf("dial delegate %s: %w", del.Endpoint, err), rmErr)
 	}
 	rc.setDockerEndpoint(ep)
 	rc.cleanUpExecutionEnvironment = func(ctx context.Context) error {
@@ -1164,28 +1166,41 @@ func (rc *RunContext) stopContainer() common.Executor {
 
 func (rc *RunContext) closeContainer() common.Executor {
 	return func(ctx context.Context) error {
+		// The job context may already be cancelled (job timeout, runner
+		// shutdown). Tear down on a fresh context so the endpoint and, for a
+		// delegating plug-in, its VM are still reclaimed.
+		ctx, cancel := context.WithTimeout(common.WithLogger(context.Background(), common.Logger(ctx)), cleanupTimeout)
+		defer cancel()
+
+		// Run every step even if an earlier one fails: skipping the plug-in
+		// teardown would leak the environment it provisioned. Join the errors.
+		var errs []error
 		if rc.JobContainer != nil {
 			if err := rc.JobContainer.Close()(ctx); err != nil {
-				return err
+				errs = append(errs, fmt.Errorf("close job container: %w", err))
 			}
 		}
+
 		rc.dockerEndpointMu.Lock()
 		ep := rc.dockerEndpoint
 		rc.dockerEndpoint = nil
 		rc.dockerEndpointMu.Unlock()
 		if ep != nil {
 			if err := ep.Close(); err != nil {
-				return err
+				errs = append(errs, fmt.Errorf("close docker endpoint: %w", err))
 			}
 		}
+
 		// Tear the plug-in's environment down last: container cleanup and the
 		// endpoint above both talk to its daemon, so it must outlive them.
 		if rc.cleanUpExecutionEnvironment != nil {
 			cleanup := rc.cleanUpExecutionEnvironment
 			rc.cleanUpExecutionEnvironment = nil
-			return cleanup(ctx)
+			if err := cleanup(ctx); err != nil {
+				errs = append(errs, fmt.Errorf("remove plug-in environment: %w", err))
+			}
 		}
-		return nil
+		return errors.Join(errs...)
 	}
 }
 
