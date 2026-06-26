@@ -19,6 +19,19 @@ func NewEndpoint(ctx context.Context, dockerHost string) (Endpoint, error) {
 	return nil, errors.New("Unsupported Operation")
 }
 
+// TLSConfig mirrors the real type so callers compile without Docker support.
+type TLSConfig struct {
+	CA                 []byte
+	Cert               []byte
+	Key                []byte
+	InsecureSkipVerify bool
+}
+
+// Open dials a Docker daemon with optional TLS material.
+func Open(ctx context.Context, endpoint string, tlsConf *TLSConfig) (Endpoint, error) {
+	return nil, errors.New("Unsupported Operation")
+}
+
 // ImageExistsLocally returns a boolean indicating if an image with the
 // requested name, tag and architecture exists in the local docker image store
 func ImageExistsLocally(ctx context.Context, ep Endpoint, imageName, platform string) (bool, error) {

@@ -36,6 +36,13 @@ func NewEndpoint(ctx context.Context, dockerHost string) (Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewEndpointFromClient(ctx, cli)
+}
+
+// NewEndpointFromClient wraps an already-dialled client in an Endpoint,
+// querying the daemon for its architecture and OS. It takes ownership of cli.
+// Use it instead of NewEndpoint when dialling with bespoke options (e.g. TLS).
+func NewEndpointFromClient(ctx context.Context, cli client.APIClient) (Endpoint, error) {
 	info, err := cli.Info(ctx)
 	if err != nil {
 		_ = cli.Close()
