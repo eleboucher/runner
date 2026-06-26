@@ -202,6 +202,53 @@ func (c *Client) NewEnvironment(input *container.NewContainerInput, backendOpts 
 	}
 }
 
+// DelegateEnvironment describes a Docker daemon a delegating plug-in has
+// provisioned (e.g. one running inside a VM it booted). The runner dials
+// Endpoint and drives every container against it; EnvironmentID is the handle
+// passed back to RemoveExecutionEnvironment to tear the daemon down.
+type DelegateEnvironment struct {
+	EnvironmentID         string
+	Endpoint              string
+	TLSCA                 []byte
+	TLSCert               []byte
+	TLSKey                []byte
+	TLSInsecureSkipVerify bool
+}
+
+// CreateExecutionEnvironment asks a delegating plug-in to provision its
+// environment and return the Docker endpoint to drive containers against. It
+// is only valid when Capabilities reports delegates_to_docker.
+func (c *Client) CreateExecutionEnvironment(ctx context.Context, input *container.NewContainerInput, backendOpts map[string]string, forcePull bool) (*DelegateEnvironment, error) {
+	resp, err := c.rpc.Create(ctx, newCreateRequest(input, backendOpts, forcePull))
+	if err != nil {
+		return nil, fmt.Errorf("plugin create: %w", err)
+	}
+	del := resp.GetDelegate()
+	if del == nil {
+		_, _ = c.rpc.Remove(ctx, &pluginv1.RemoveRequest{EnvironmentId: resp.GetEnvironmentId()})
+		return nil, fmt.Errorf("plugin declared delegates_to_docker but returned no delegate block")
+	}
+	if del.GetEndpoint() == "" {
+		_, _ = c.rpc.Remove(ctx, &pluginv1.RemoveRequest{EnvironmentId: resp.GetEnvironmentId()})
+		return nil, fmt.Errorf("plugin delegate endpoint is empty")
+	}
+	return &DelegateEnvironment{
+		EnvironmentID:         resp.GetEnvironmentId(),
+		Endpoint:              del.GetEndpoint(),
+		TLSCA:                 del.GetTlsCa(),
+		TLSCert:               del.GetTlsCert(),
+		TLSKey:                del.GetTlsKey(),
+		TLSInsecureSkipVerify: del.GetTlsInsecureSkipVerify(),
+	}, nil
+}
+
+// RemoveExecutionEnvironment tears down an environment provisioned by
+// CreateExecutionEnvironment.
+func (c *Client) RemoveExecutionEnvironment(ctx context.Context, environmentID string) error {
+	_, err := c.rpc.Remove(ctx, &pluginv1.RemoveRequest{EnvironmentId: environmentID})
+	return err
+}
+
 func (c *Client) Close() error {
 	return c.conn.Close()
 }

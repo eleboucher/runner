@@ -6,6 +6,7 @@ import (
 	"net"
 	"testing"
 
+	"code.forgejo.org/forgejo/runner/v12/act/container"
 	pluginv1 "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,4 +99,91 @@ func TestNewClient_RejectsUnsupportedProtocolVersion(t *testing.T) {
 	_, err := NewClient(t.Context(), lis.Addr().String(), WithAllowPlainTCP())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported plugin protocol version")
+}
+
+// delegateServer is a minimal reference for a delegating plugin: it declares
+// delegates_to_docker and returns a Docker endpoint + TLS material from Create.
+type delegateServer struct {
+	pluginv1.UnimplementedBackendPluginServer
+	caps       *pluginv1.CapabilitiesResponse
+	createResp *pluginv1.CreateResponse
+	createReq  *pluginv1.CreateRequest
+	removed    []string
+}
+
+func (d *delegateServer) Capabilities(context.Context, *pluginv1.CapabilitiesRequest) (*pluginv1.CapabilitiesResponse, error) {
+	return d.caps, nil
+}
+
+func (d *delegateServer) Create(_ context.Context, req *pluginv1.CreateRequest) (*pluginv1.CreateResponse, error) {
+	d.createReq = req
+	return d.createResp, nil
+}
+
+func (d *delegateServer) Remove(_ context.Context, req *pluginv1.RemoveRequest) (*pluginv1.RemoveResponse, error) {
+	d.removed = append(d.removed, req.GetEnvironmentId())
+	return &pluginv1.RemoveResponse{}, nil
+}
+
+func delegateCaps() *pluginv1.CapabilitiesResponse {
+	return &pluginv1.CapabilitiesResponse{
+		ProtocolVersion:   ProtocolVersion,
+		Name:              "vm",
+		RootPath:          "/r",
+		ActPath:           "/r/act",
+		DelegatesToDocker: true,
+	}
+}
+
+func TestClient_CreateExecutionEnvironment_Delegate(t *testing.T) {
+	srv := grpc.NewServer()
+	server := &delegateServer{
+		caps: delegateCaps(),
+		createResp: &pluginv1.CreateResponse{
+			EnvironmentId: "env-1",
+			Delegate: &pluginv1.DockerDelegate{
+				Endpoint: "tcp://10.0.0.2:2376",
+				TlsCa:    []byte("ca"),
+				TlsCert:  []byte("cert"),
+				TlsKey:   []byte("key"),
+			},
+		},
+	}
+	pluginv1.RegisterBackendPluginServer(srv, server)
+	lis := startListener(t, srv, grpc_health_v1.HealthCheckResponse_SERVING)
+
+	c, err := NewClient(t.Context(), lis.Addr().String(), WithAllowPlainTCP())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+
+	require.True(t, c.Capabilities().GetDelegatesToDocker())
+
+	del, err := c.CreateExecutionEnvironment(t.Context(), &container.NewContainerInput{Image: "x", Name: "n", DefaultPlatform: "linux/arm64"}, nil, false)
+	require.NoError(t, err)
+	assert.Equal(t, "linux/arm64", server.createReq.GetPlatform())
+	assert.Equal(t, "env-1", del.EnvironmentID)
+	assert.Equal(t, "tcp://10.0.0.2:2376", del.Endpoint)
+	assert.Equal(t, []byte("ca"), del.TLSCA)
+	assert.Equal(t, []byte("cert"), del.TLSCert)
+	assert.Equal(t, []byte("key"), del.TLSKey)
+
+	require.NoError(t, c.RemoveExecutionEnvironment(t.Context(), del.EnvironmentID))
+	assert.Equal(t, []string{"env-1"}, server.removed)
+}
+
+func TestClient_CreateExecutionEnvironment_RejectsMissingDelegate(t *testing.T) {
+	srv := grpc.NewServer()
+	pluginv1.RegisterBackendPluginServer(srv, &delegateServer{
+		caps:       delegateCaps(),
+		createResp: &pluginv1.CreateResponse{EnvironmentId: "env-2"}, // no delegate block
+	})
+	lis := startListener(t, srv, grpc_health_v1.HealthCheckResponse_SERVING)
+
+	c, err := NewClient(t.Context(), lis.Addr().String(), WithAllowPlainTCP())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+
+	_, err = c.CreateExecutionEnvironment(t.Context(), &container.NewContainerInput{}, nil, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no delegate block")
 }

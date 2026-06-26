@@ -53,6 +53,38 @@ func TestNewEndpointHonoursTLSEnv(t *testing.T) {
 	require.True(t, sawClientCert, "client certificate from DOCKER_CERT_PATH was not presented")
 }
 
+// TestOpenHonoursTLSEnvForEndpoint checks Open's env-TLS fallback: an explicit
+// endpoint with no PEM (tlsConf == nil) still honours DOCKER_TLS_VERIFY and
+// DOCKER_CERT_PATH.
+func TestOpenHonoursTLSEnvForEndpoint(t *testing.T) {
+	var sawTLS, sawClientCert bool
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawTLS = r.TLS != nil
+		sawClientCert = r.TLS != nil && len(r.TLS.PeerCertificates) > 0
+		_, _ = w.Write([]byte("{}")) // any valid JSON satisfies cli.Info()
+	}))
+	srv.TLS = &tls.Config{ClientAuth: tls.RequestClientCert}
+	srv.StartTLS()
+	defer srv.Close()
+
+	certDir := t.TempDir()
+	writeClientCerts(t, certDir)
+	require.NoError(t, os.WriteFile(filepath.Join(certDir, "ca.pem"),
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw}), 0o600))
+
+	host := "tcp://" + strings.TrimPrefix(srv.URL, "https://")
+	t.Setenv("DOCKER_TLS_VERIFY", "1")
+	t.Setenv("DOCKER_CERT_PATH", certDir)
+	t.Setenv("DOCKER_API_VERSION", "1.45") // skip version negotiation against the stub
+
+	ep, err := Open(t.Context(), host, nil)
+	require.NoError(t, err, "DOCKER_TLS_VERIFY/DOCKER_CERT_PATH were ignored: plain HTTP hit the TLS endpoint")
+	defer ep.Close()
+
+	require.True(t, sawTLS, "connection was not made over TLS")
+	require.True(t, sawClientCert, "client certificate from DOCKER_CERT_PATH was not presented")
+}
+
 // writeClientCerts writes a throwaway cert.pem/key.pem into dir.
 func writeClientCerts(t *testing.T, dir string) {
 	t.Helper()
