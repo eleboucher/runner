@@ -2,6 +2,10 @@ package container
 
 import "context"
 
+type ServiceAdder interface {
+	AddServiceContainerRaw(name, image string, env map[string]string, ports []string)
+}
+
 type ExecutionsEnvironment interface {
 	Container
 	ToContainerPath(string) string
