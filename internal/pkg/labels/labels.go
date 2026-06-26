@@ -50,9 +50,6 @@ func Parse(str string) (*Label, error) {
 
 	if len(splits) >= 2 {
 		label.Schema = splits[1]
-		if label.Schema != SchemeHost && label.Schema != SchemeDocker && label.Schema != SchemeLXC {
-			return nil, fmt.Errorf("unsupported schema: %s", label.Schema)
-		}
 	}
 
 	if len(splits) >= 3 {
@@ -68,6 +65,11 @@ func Parse(str string) (*Label, error) {
 			label.Arg = ArgDocker
 		case SchemeLXC:
 			label.Arg = ArgLXC
+		case SchemeHost:
+			// host has no default arg
+		default:
+			// Plugin schemes require an argument (the plugin address or config reference).
+			return nil, fmt.Errorf("schema %q requires an argument (e.g. \"mylabel:%s://arg\")", label.Schema, label.Schema)
 		}
 	}
 
@@ -176,8 +178,7 @@ func (l Labels) PickPlatform(runsOn []string) string {
 		case SchemeLXC:
 			platforms[label.Name] = "lxc:" + strings.TrimPrefix(label.Arg, "//")
 		default:
-			// It should not happen, because Parse has checked it.
-			continue
+			platforms[label.Name] = label.Schema + ":" + label.Arg
 		}
 	}
 	for _, v := range runsOn {

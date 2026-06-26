@@ -75,6 +75,13 @@ type Config struct {
 
 	ContainerNetworkEnableIPv6 bool   // create the network with IPv6 support enabled
 	ServerVersion              string // Git forge server version
+
+	Plugins map[string]PluginConfig
+}
+
+type PluginConfig struct {
+	Address string
+	Options map[string]string
 }
 
 // GetToken: Adapt to Gitea
