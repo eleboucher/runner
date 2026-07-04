@@ -129,18 +129,35 @@ func (p *pluginEnvironment) ToContainerPath(path string) string {
 	return path
 }
 
-// newCreateRequest maps the container input fields common to both plugin Create
-// paths. Callers set path-specific fields (cap add/drop, services) afterwards.
+// newCreateRequest maps the container input into a Create request. Callers set
+// path-specific fields (cap add/drop, services) afterwards.
 func newCreateRequest(input *container.NewContainerInput, backendOpts map[string]string, forcePull bool) *pluginv1.CreateRequest {
-	return &pluginv1.CreateRequest{
+	req := &pluginv1.CreateRequest{
 		Image:          input.Image,
 		Name:           input.Name,
-		Env:            input.Env,
+		Env:            envSliceToMap(input.Env),
 		WorkingDir:     input.WorkingDir,
 		BackendOptions: backendOpts,
 		ForcePull:      forcePull,
-		Platform:       input.DefaultPlatform,
 	}
+	if p := input.DefaultPlatform; p != "" {
+		req.Platform = &p
+	}
+	return req
+}
+
+// envSliceToMap converts docker-style KEY=VALUE entries into a map, last value
+// winning on duplicate keys. An entry without '=' maps the whole entry to "".
+func envSliceToMap(env []string) map[string]string {
+	if len(env) == 0 {
+		return nil
+	}
+	m := make(map[string]string, len(env))
+	for _, kv := range env {
+		k, v, _ := strings.Cut(kv, "=")
+		m[k] = v
+	}
+	return m
 }
 
 func (p *pluginEnvironment) Create(capAdd, capDrop []string) common.Executor {
@@ -152,9 +169,6 @@ func (p *pluginEnvironment) Create(capAdd, capDrop []string) common.Executor {
 		resp, err := p.client.Create(ctx, req)
 		if err != nil {
 			return fmt.Errorf("plugin create: %w", err)
-		}
-		if resp.GetDelegate() != nil {
-			return fmt.Errorf("plugin returned a Docker delegate but did not declare delegates_to_docker")
 		}
 		p.envID = resp.GetEnvironmentId()
 		return nil

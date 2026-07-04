@@ -115,7 +115,7 @@ func (s *Server) Create(_ context.Context, req *pluginv1.CreateRequest) (*plugin
 	s.envs[envID] = &environment{
 		root:    root,
 		workdir: workdir,
-		env:     req.GetEnv(),
+		env:     envMapToSlice(req.GetEnv()),
 	}
 	s.mu.Unlock()
 
@@ -413,6 +413,14 @@ func (w *execStreamWriter) Write(p []byte) (int, error) {
 		return 0, err
 	}
 	return len(p), nil
+}
+
+func envMapToSlice(env map[string]string) []string {
+	out := make([]string, 0, len(env))
+	for k, v := range env {
+		out = append(out, k+"="+v)
+	}
+	return out
 }
 
 func extractTar(destPath string, r io.Reader) error {

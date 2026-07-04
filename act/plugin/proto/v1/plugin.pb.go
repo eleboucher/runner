@@ -66,7 +66,7 @@ func (x ExecOutput_Stream) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ExecOutput_Stream.Descriptor instead.
 func (ExecOutput_Stream) EnumDescriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{9, 0}
+	return file_plugin_proto_rawDescGZIP(), []int{12, 0}
 }
 
 type CapabilitiesRequest struct {
@@ -106,26 +106,42 @@ func (*CapabilitiesRequest) Descriptor() ([]byte, []int) {
 }
 
 type CapabilitiesResponse struct {
-	state                      protoimpl.MessageState `protogen:"open.v1"`
-	Name                       string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	RootPath                   string                 `protobuf:"bytes,2,opt,name=root_path,json=rootPath,proto3" json:"root_path,omitempty"`
-	ActPath                    string                 `protobuf:"bytes,3,opt,name=act_path,json=actPath,proto3" json:"act_path,omitempty"`
-	ToolCachePath              string                 `protobuf:"bytes,4,opt,name=tool_cache_path,json=toolCachePath,proto3" json:"tool_cache_path,omitempty"`
-	PathVariableName           string                 `protobuf:"bytes,5,opt,name=path_variable_name,json=pathVariableName,proto3" json:"path_variable_name,omitempty"`
-	DefaultPathVariable        string                 `protobuf:"bytes,6,opt,name=default_path_variable,json=defaultPathVariable,proto3" json:"default_path_variable,omitempty"`
-	PathSeparator              string                 `protobuf:"bytes,7,opt,name=path_separator,json=pathSeparator,proto3" json:"path_separator,omitempty"`
-	SupportsDockerActions      bool                   `protobuf:"varint,8,opt,name=supports_docker_actions,json=supportsDockerActions,proto3" json:"supports_docker_actions,omitempty"`
-	ManagesOwnNetworking       bool                   `protobuf:"varint,9,opt,name=manages_own_networking,json=managesOwnNetworking,proto3" json:"manages_own_networking,omitempty"`
-	SupportsServiceContainers  bool                   `protobuf:"varint,10,opt,name=supports_service_containers,json=supportsServiceContainers,proto3" json:"supports_service_containers,omitempty"`
-	EnvironmentCaseInsensitive bool                   `protobuf:"varint,11,opt,name=environment_case_insensitive,json=environmentCaseInsensitive,proto3" json:"environment_case_insensitive,omitempty"`
-	RunnerContext              map[string]string      `protobuf:"bytes,12,rep,name=runner_context,json=runnerContext,proto3" json:"runner_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SupportsLocalCopy          bool                   `protobuf:"varint,13,opt,name=supports_local_copy,json=supportsLocalCopy,proto3" json:"supports_local_copy,omitempty"`
-	// delegates_to_docker indicates the plugin only manages an execution
-	// environment lifecycle and exposes a Docker daemon endpoint for the
-	// runner to drive containers against. When true, the runner ignores
-	// Exec/CopyIn/CopyLocal/CopyOut/UpdateEnv/IsHealthy on this plugin and
-	// talks directly to the daemon returned in CreateResponse.delegate.
-	DelegatesToDocker bool `protobuf:"varint,14,opt,name=delegates_to_docker,json=delegatesToDocker,proto3" json:"delegates_to_docker,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// name identifies the backend (e.g. "kubernetes"); used in logs and as the
+	// container back-end name.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// root_path is the base directory the runner lays workflow files out under.
+	RootPath string `protobuf:"bytes,2,opt,name=root_path,json=rootPath,proto3" json:"root_path,omitempty"`
+	// act_path is where the runner stages its helper binaries and action code.
+	ActPath string `protobuf:"bytes,3,opt,name=act_path,json=actPath,proto3" json:"act_path,omitempty"`
+	// tool_cache_path is exposed to jobs as RUNNER_TOOL_CACHE.
+	ToolCachePath string `protobuf:"bytes,4,opt,name=tool_cache_path,json=toolCachePath,proto3" json:"tool_cache_path,omitempty"`
+	// path_variable_name is the search-path environment variable ("PATH" on
+	// POSIX, "Path" on Windows). Defaults to "PATH" when empty.
+	PathVariableName string `protobuf:"bytes,5,opt,name=path_variable_name,json=pathVariableName,proto3" json:"path_variable_name,omitempty"`
+	// default_path_variable is the search path used when a job sets none.
+	DefaultPathVariable string `protobuf:"bytes,6,opt,name=default_path_variable,json=defaultPathVariable,proto3" json:"default_path_variable,omitempty"`
+	// path_separator joins entries of path_variable_name (":" or ";"). Defaults
+	// to ":" when empty.
+	PathSeparator string `protobuf:"bytes,7,opt,name=path_separator,json=pathSeparator,proto3" json:"path_separator,omitempty"`
+	// supports_docker_actions gates `uses: docker://` and container actions. When
+	// false, the runner errors upfront on a job that needs them.
+	SupportsDockerActions bool `protobuf:"varint,8,opt,name=supports_docker_actions,json=supportsDockerActions,proto3" json:"supports_docker_actions,omitempty"`
+	// manages_own_networking tells the runner the backend provides connectivity
+	// itself; the runner then skips creating/attaching a Docker-style network.
+	ManagesOwnNetworking bool `protobuf:"varint,9,opt,name=manages_own_networking,json=managesOwnNetworking,proto3" json:"manages_own_networking,omitempty"`
+	// supports_service_containers gates the workflow `services:` block. When
+	// false, the runner errors upfront on a job that declares services.
+	SupportsServiceContainers bool `protobuf:"varint,10,opt,name=supports_service_containers,json=supportsServiceContainers,proto3" json:"supports_service_containers,omitempty"`
+	// environment_case_insensitive marks environments whose variable names are
+	// case-insensitive (Windows), so the runner de-duplicates accordingly.
+	EnvironmentCaseInsensitive bool `protobuf:"varint,11,opt,name=environment_case_insensitive,json=environmentCaseInsensitive,proto3" json:"environment_case_insensitive,omitempty"`
+	// runner_context carries backend-provided values for the Actions runner
+	// context (os, arch, temp, tool_cache). Treated as opaque key/values.
+	RunnerContext map[string]string `protobuf:"bytes,12,rep,name=runner_context,json=runnerContext,proto3" json:"runner_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// supports_local_copy advertises the CopyLocal fast path (a volume shared
+	// between runner and environment). When false the runner uses CopyIn.
+	SupportsLocalCopy bool `protobuf:"varint,13,opt,name=supports_local_copy,json=supportsLocalCopy,proto3" json:"supports_local_copy,omitempty"`
 	// protocol_version is the plugin protocol the server speaks. The runner
 	// rejects a plugin whose version it does not support.
 	ProtocolVersion uint32 `protobuf:"varint,15,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
@@ -254,13 +270,6 @@ func (x *CapabilitiesResponse) GetSupportsLocalCopy() bool {
 	return false
 }
 
-func (x *CapabilitiesResponse) GetDelegatesToDocker() bool {
-	if x != nil {
-		return x.DelegatesToDocker
-	}
-	return false
-}
-
 func (x *CapabilitiesResponse) GetProtocolVersion() uint32 {
 	if x != nil {
 		return x.ProtocolVersion
@@ -269,11 +278,15 @@ func (x *CapabilitiesResponse) GetProtocolVersion() uint32 {
 }
 
 type ServiceContainer struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Image         string                 `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"`
-	Env           map[string]string      `protobuf:"bytes,3,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Ports         []string               `protobuf:"bytes,4,rep,name=ports,proto3" json:"ports,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// name is the service ID from the workflow `services:` block.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// image is the backend-defined image reference for the service.
+	Image string `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"`
+	// env are the service container's environment variables.
+	Env map[string]string `protobuf:"bytes,3,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// ports are host:container port mappings requested for the service.
+	Ports         []string `protobuf:"bytes,4,rep,name=ports,proto3" json:"ports,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -337,21 +350,35 @@ func (x *ServiceContainer) GetPorts() []string {
 }
 
 type CreateRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Image          string                 `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
-	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Env            []string               `protobuf:"bytes,3,rep,name=env,proto3" json:"env,omitempty"`
-	WorkingDir     string                 `protobuf:"bytes,4,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
-	CapAdd         []string               `protobuf:"bytes,5,rep,name=cap_add,json=capAdd,proto3" json:"cap_add,omitempty"`
-	CapDrop        []string               `protobuf:"bytes,6,rep,name=cap_drop,json=capDrop,proto3" json:"cap_drop,omitempty"`
-	Services       []*ServiceContainer    `protobuf:"bytes,7,rep,name=services,proto3" json:"services,omitempty"`
-	BackendOptions map[string]string      `protobuf:"bytes,8,rep,name=backend_options,json=backendOptions,proto3" json:"backend_options,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// force_pull asks the plugin to re-fetch the image. Plugins that cannot
-	// honor it should still succeed using the cached image.
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// image is the backend-defined reference for the job container image. It is
+	// opaque to the protocol; a Docker backend reads it as a Docker image name,
+	// another backend may read it as a VM template, etc.
+	Image string `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
+	// name is a runner-assigned handle for the environment, unique per job.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// env are the environment variables to seed the job container with.
+	Env map[string]string `protobuf:"bytes,3,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// working_dir is the directory commands run in by default.
+	WorkingDir string `protobuf:"bytes,4,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
+	// cap_add / cap_drop are Linux container capability adjustments. Backends
+	// that cannot express them (non-container executors) may ignore them.
+	CapAdd  []string `protobuf:"bytes,5,rep,name=cap_add,json=capAdd,proto3" json:"cap_add,omitempty"`
+	CapDrop []string `protobuf:"bytes,6,rep,name=cap_drop,json=capDrop,proto3" json:"cap_drop,omitempty"`
+	// services are the service containers to bring up alongside the job. Only
+	// populated when CapabilitiesResponse.supports_service_containers is true.
+	Services []*ServiceContainer `protobuf:"bytes,7,rep,name=services,proto3" json:"services,omitempty"`
+	// backend_options are opaque, backend-specific options taken verbatim from
+	// the runner's per-label plugin configuration (e.g. namespace, VM flavour).
+	BackendOptions map[string]string `protobuf:"bytes,8,rep,name=backend_options,json=backendOptions,proto3" json:"backend_options,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// force_pull asks the backend to re-fetch the image rather than use a cached
+	// copy. Backends that cannot honor it should still succeed with the cache.
 	ForcePull bool `protobuf:"varint,9,opt,name=force_pull,json=forcePull,proto3" json:"force_pull,omitempty"`
-	// platform is the OS/arch (e.g. "linux/amd64") the runner label selected for
-	// image pulls and container creation. Empty means auto-detect.
-	Platform      string `protobuf:"bytes,10,opt,name=platform,proto3" json:"platform,omitempty"`
+	// platform is an execution-environment-specific value the runner passes
+	// through verbatim (a Docker backend reads it as an OS/arch string like
+	// "linux/amd64"). Omitted when the runner has no selection to convey.
+	// Platform discovery is being reworked; this field is provisional.
+	Platform      *string `protobuf:"bytes,10,opt,name=platform,proto3,oneof" json:"platform,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -400,7 +427,7 @@ func (x *CreateRequest) GetName() string {
 	return ""
 }
 
-func (x *CreateRequest) GetEnv() []string {
+func (x *CreateRequest) GetEnv() map[string]string {
 	if x != nil {
 		return x.Env
 	}
@@ -450,19 +477,16 @@ func (x *CreateRequest) GetForcePull() bool {
 }
 
 func (x *CreateRequest) GetPlatform() string {
-	if x != nil {
-		return x.Platform
+	if x != nil && x.Platform != nil {
+		return *x.Platform
 	}
 	return ""
 }
 
 type CreateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	// delegate is set iff CapabilitiesResponse.delegates_to_docker is true.
-	// Carries the Docker daemon endpoint and TLS material the runner uses
-	// to drive containers inside the plugin-managed environment.
-	Delegate      *DockerDelegate `protobuf:"bytes,2,opt,name=delegate,proto3" json:"delegate,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// environment_id is the handle for all later RPCs targeting this environment.
+	EnvironmentId string `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -504,25 +528,35 @@ func (x *CreateResponse) GetEnvironmentId() string {
 	return ""
 }
 
-func (x *CreateResponse) GetDelegate() *DockerDelegate {
-	if x != nil {
-		return x.Delegate
-	}
-	return nil
-}
-
-// DockerDelegate carries the address and TLS material for a Docker daemon
-// running inside (or proxied by) the plugin-managed execution environment.
+// DockerDelegate carries the address and TLS material for a Docker daemon a
+// DockerTunnelPlugin exposes (e.g. one running inside a VM it booted).
+//
+// Trust model: the runner already trusts the plugin (it is configured to talk
+// to it). TLS here does not protect the runner from the plugin; it protects the
+// daemon socket from other parties on the environment's network. So:
+//   - Prefer a non-networked endpoint (unix:// socket, vsock, or an SSH tunnel
+//     the plugin sets up). Then no TLS material is needed and the fields below
+//     stay empty.
+//   - Only when the daemon must be reached over a real network should the
+//     plugin supply TLS material, and it should be EPHEMERAL client credentials
+//     scoped to this one throwaway environment (minted at Create, discarded at
+//     Remove) rather than a long-lived or shared identity.
+//
 // All bytes fields are PEM-encoded.
 type DockerDelegate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// endpoint accepts unix:///path, tcp://host:port, or ssh:// addresses.
+	// endpoint is the daemon address: unix://path, tcp://host:port, or ssh://.
 	Endpoint string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	TlsCa    []byte `protobuf:"bytes,2,opt,name=tls_ca,json=tlsCa,proto3" json:"tls_ca,omitempty"`
-	TlsCert  []byte `protobuf:"bytes,3,opt,name=tls_cert,json=tlsCert,proto3" json:"tls_cert,omitempty"`
-	TlsKey   []byte `protobuf:"bytes,4,opt,name=tls_key,json=tlsKey,proto3" json:"tls_key,omitempty"`
-	// tls_insecure_skip_verify disables certificate verification. Intended
-	// for development and bootstrap scenarios with self-signed daemons.
+	// tls_ca is the CA certificate (public) used to verify the daemon. Empty for
+	// non-networked endpoints.
+	TlsCa []byte `protobuf:"bytes,2,opt,name=tls_ca,json=tlsCa,proto3" json:"tls_ca,omitempty"`
+	// tls_cert / tls_key are the client certificate and its private key the
+	// runner presents to the daemon. Empty for non-networked endpoints; when set,
+	// should be ephemeral and scoped to this environment (see message docs).
+	TlsCert []byte `protobuf:"bytes,3,opt,name=tls_cert,json=tlsCert,proto3" json:"tls_cert,omitempty"`
+	TlsKey  []byte `protobuf:"bytes,4,opt,name=tls_key,json=tlsKey,proto3" json:"tls_key,omitempty"`
+	// tls_insecure_skip_verify disables certificate verification. Intended for
+	// development and bootstrap scenarios with self-signed daemons only.
 	TlsInsecureSkipVerify bool `protobuf:"varint,5,opt,name=tls_insecure_skip_verify,json=tlsInsecureSkipVerify,proto3" json:"tls_insecure_skip_verify,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
@@ -593,6 +627,184 @@ func (x *DockerDelegate) GetTlsInsecureSkipVerify() bool {
 	return false
 }
 
+type TunnelCapabilitiesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// name identifies the tunnel plugin (e.g. "tart"); used in logs.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// protocol_version is the plugin protocol the server speaks. The runner
+	// rejects a plugin whose version it does not support.
+	ProtocolVersion uint32 `protobuf:"varint,2,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *TunnelCapabilitiesResponse) Reset() {
+	*x = TunnelCapabilitiesResponse{}
+	mi := &file_plugin_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TunnelCapabilitiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TunnelCapabilitiesResponse) ProtoMessage() {}
+
+func (x *TunnelCapabilitiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plugin_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TunnelCapabilitiesResponse.ProtoReflect.Descriptor instead.
+func (*TunnelCapabilitiesResponse) Descriptor() ([]byte, []int) {
+	return file_plugin_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *TunnelCapabilitiesResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TunnelCapabilitiesResponse) GetProtocolVersion() uint32 {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return 0
+}
+
+type TunnelCreateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// backend_options are opaque, backend-specific options taken verbatim from
+	// the runner's per-label plugin configuration (e.g. VM flavour, base image).
+	BackendOptions map[string]string `protobuf:"bytes,1,rep,name=backend_options,json=backendOptions,proto3" json:"backend_options,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// platform is an execution-environment-specific value passed through verbatim
+	// (which VM/OS to boot). Omitted when the runner has no selection to convey.
+	// Platform discovery is being reworked; this field is provisional.
+	Platform *string `protobuf:"bytes,2,opt,name=platform,proto3,oneof" json:"platform,omitempty"`
+	// force_pull asks the plugin to refresh its base image (e.g. VM template)
+	// rather than use a cached copy. Plugins that cannot honor it should still
+	// succeed with the cache.
+	ForcePull     bool `protobuf:"varint,3,opt,name=force_pull,json=forcePull,proto3" json:"force_pull,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TunnelCreateRequest) Reset() {
+	*x = TunnelCreateRequest{}
+	mi := &file_plugin_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TunnelCreateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TunnelCreateRequest) ProtoMessage() {}
+
+func (x *TunnelCreateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plugin_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TunnelCreateRequest.ProtoReflect.Descriptor instead.
+func (*TunnelCreateRequest) Descriptor() ([]byte, []int) {
+	return file_plugin_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *TunnelCreateRequest) GetBackendOptions() map[string]string {
+	if x != nil {
+		return x.BackendOptions
+	}
+	return nil
+}
+
+func (x *TunnelCreateRequest) GetPlatform() string {
+	if x != nil && x.Platform != nil {
+		return *x.Platform
+	}
+	return ""
+}
+
+func (x *TunnelCreateRequest) GetForcePull() bool {
+	if x != nil {
+		return x.ForcePull
+	}
+	return false
+}
+
+type TunnelCreateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// environment_id is the handle passed to Remove to tear the environment down.
+	EnvironmentId string `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	// delegate is the Docker daemon the runner drives containers against. Always
+	// set on a successful Create.
+	Delegate      *DockerDelegate `protobuf:"bytes,2,opt,name=delegate,proto3" json:"delegate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TunnelCreateResponse) Reset() {
+	*x = TunnelCreateResponse{}
+	mi := &file_plugin_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TunnelCreateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TunnelCreateResponse) ProtoMessage() {}
+
+func (x *TunnelCreateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plugin_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TunnelCreateResponse.ProtoReflect.Descriptor instead.
+func (*TunnelCreateResponse) Descriptor() ([]byte, []int) {
+	return file_plugin_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *TunnelCreateResponse) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *TunnelCreateResponse) GetDelegate() *DockerDelegate {
+	if x != nil {
+		return x.Delegate
+	}
+	return nil
+}
+
 type StartRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
@@ -602,7 +814,7 @@ type StartRequest struct {
 
 func (x *StartRequest) Reset() {
 	*x = StartRequest{}
-	mi := &file_plugin_proto_msgTypes[6]
+	mi := &file_plugin_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -614,7 +826,7 @@ func (x *StartRequest) String() string {
 func (*StartRequest) ProtoMessage() {}
 
 func (x *StartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[6]
+	mi := &file_plugin_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +839,7 @@ func (x *StartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRequest.ProtoReflect.Descriptor instead.
 func (*StartRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{6}
+	return file_plugin_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StartRequest) GetEnvironmentId() string {
@@ -638,15 +850,17 @@ func (x *StartRequest) GetEnvironmentId() string {
 }
 
 type StartResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ImageEnv      map[string]string      `protobuf:"bytes,1,rep,name=image_env,json=imageEnv,proto3" json:"image_env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// image_env are environment variables baked into the resolved image (e.g. a
+	// Docker image's ENV). The runner layers them under the job's own variables.
+	ImageEnv      map[string]string `protobuf:"bytes,1,rep,name=image_env,json=imageEnv,proto3" json:"image_env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartResponse) Reset() {
 	*x = StartResponse{}
-	mi := &file_plugin_proto_msgTypes[7]
+	mi := &file_plugin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -658,7 +872,7 @@ func (x *StartResponse) String() string {
 func (*StartResponse) ProtoMessage() {}
 
 func (x *StartResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[7]
+	mi := &file_plugin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -671,7 +885,7 @@ func (x *StartResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartResponse.ProtoReflect.Descriptor instead.
 func (*StartResponse) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{7}
+	return file_plugin_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StartResponse) GetImageEnv() map[string]string {
@@ -684,17 +898,21 @@ func (x *StartResponse) GetImageEnv() map[string]string {
 type ExecRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	Command       []string               `protobuf:"bytes,2,rep,name=command,proto3" json:"command,omitempty"`
-	Env           map[string]string      `protobuf:"bytes,3,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	User          string                 `protobuf:"bytes,4,opt,name=user,proto3" json:"user,omitempty"`
-	Workdir       string                 `protobuf:"bytes,5,opt,name=workdir,proto3" json:"workdir,omitempty"`
+	// command is the argv to run; command[0] is the executable.
+	Command []string `protobuf:"bytes,2,rep,name=command,proto3" json:"command,omitempty"`
+	// env are environment variables to set for this command.
+	Env map[string]string `protobuf:"bytes,3,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// user is the user to run as, when the backend supports it (empty = default).
+	User string `protobuf:"bytes,4,opt,name=user,proto3" json:"user,omitempty"`
+	// workdir overrides the working directory for this command (empty = default).
+	Workdir       string `protobuf:"bytes,5,opt,name=workdir,proto3" json:"workdir,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecRequest) Reset() {
 	*x = ExecRequest{}
-	mi := &file_plugin_proto_msgTypes[8]
+	mi := &file_plugin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -706,7 +924,7 @@ func (x *ExecRequest) String() string {
 func (*ExecRequest) ProtoMessage() {}
 
 func (x *ExecRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[8]
+	mi := &file_plugin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -719,7 +937,7 @@ func (x *ExecRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecRequest.ProtoReflect.Descriptor instead.
 func (*ExecRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{8}
+	return file_plugin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ExecRequest) GetEnvironmentId() string {
@@ -758,19 +976,25 @@ func (x *ExecRequest) GetWorkdir() string {
 }
 
 type ExecOutput struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Stream        ExecOutput_Stream      `protobuf:"varint,1,opt,name=stream,proto3,enum=plugin.v1.ExecOutput_Stream" json:"stream,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	ExitCode      int32                  `protobuf:"varint,3,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
-	Done          bool                   `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
-	ErrorMessage  string                 `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// stream identifies which output data belongs to.
+	Stream ExecOutput_Stream `protobuf:"varint,1,opt,name=stream,proto3,enum=plugin.v1.ExecOutput_Stream" json:"stream,omitempty"`
+	// data is a chunk of output bytes.
+	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	// exit_code is the command's exit status; only meaningful when done is true.
+	ExitCode int32 `protobuf:"varint,3,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	// done marks the final message of the stream.
+	Done bool `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
+	// error_message describes a failure to run the command (as opposed to the
+	// command itself failing); only meaningful when done is true.
+	ErrorMessage  string `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecOutput) Reset() {
 	*x = ExecOutput{}
-	mi := &file_plugin_proto_msgTypes[9]
+	mi := &file_plugin_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -782,7 +1006,7 @@ func (x *ExecOutput) String() string {
 func (*ExecOutput) ProtoMessage() {}
 
 func (x *ExecOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[9]
+	mi := &file_plugin_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -795,7 +1019,7 @@ func (x *ExecOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecOutput.ProtoReflect.Descriptor instead.
 func (*ExecOutput) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{9}
+	return file_plugin_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ExecOutput) GetStream() ExecOutput_Stream {
@@ -833,22 +1057,23 @@ func (x *ExecOutput) GetErrorMessage() string {
 	return ""
 }
 
-// CopyInChunk frames the client-streaming CopyIn RPC. The first chunk MUST
-// set environment_id and dest_path; subsequent chunks carry only data.
-// Servers MUST reject environment_id or dest_path on later chunks with
-// codes.InvalidArgument.
+// CopyInChunk frames the client-streaming CopyIn RPC. The first chunk MUST set
+// environment_id and dest_path; subsequent chunks carry only data. Servers MUST
+// reject environment_id or dest_path on later chunks with codes.InvalidArgument.
 type CopyInChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	DestPath      string                 `protobuf:"bytes,2,opt,name=dest_path,json=destPath,proto3" json:"dest_path,omitempty"`
-	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	// dest_path is the directory the tar archive is extracted into.
+	DestPath string `protobuf:"bytes,2,opt,name=dest_path,json=destPath,proto3" json:"dest_path,omitempty"`
+	// data is a chunk of the tar archive.
+	Data          []byte `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CopyInChunk) Reset() {
 	*x = CopyInChunk{}
-	mi := &file_plugin_proto_msgTypes[10]
+	mi := &file_plugin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -860,7 +1085,7 @@ func (x *CopyInChunk) String() string {
 func (*CopyInChunk) ProtoMessage() {}
 
 func (x *CopyInChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[10]
+	mi := &file_plugin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -873,7 +1098,7 @@ func (x *CopyInChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyInChunk.ProtoReflect.Descriptor instead.
 func (*CopyInChunk) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{10}
+	return file_plugin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CopyInChunk) GetEnvironmentId() string {
@@ -905,7 +1130,7 @@ type CopyInResponse struct {
 
 func (x *CopyInResponse) Reset() {
 	*x = CopyInResponse{}
-	mi := &file_plugin_proto_msgTypes[11]
+	mi := &file_plugin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +1142,7 @@ func (x *CopyInResponse) String() string {
 func (*CopyInResponse) ProtoMessage() {}
 
 func (x *CopyInResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[11]
+	mi := &file_plugin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,21 +1155,23 @@ func (x *CopyInResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyInResponse.ProtoReflect.Descriptor instead.
 func (*CopyInResponse) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{11}
+	return file_plugin_proto_rawDescGZIP(), []int{14}
 }
 
 type CopyLocalRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	SrcPath       string                 `protobuf:"bytes,2,opt,name=src_path,json=srcPath,proto3" json:"src_path,omitempty"`
-	DestPath      string                 `protobuf:"bytes,3,opt,name=dest_path,json=destPath,proto3" json:"dest_path,omitempty"`
+	// src_path is a path on the volume shared with the runner.
+	SrcPath string `protobuf:"bytes,2,opt,name=src_path,json=srcPath,proto3" json:"src_path,omitempty"`
+	// dest_path is the destination directory inside the environment.
+	DestPath      string `protobuf:"bytes,3,opt,name=dest_path,json=destPath,proto3" json:"dest_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CopyLocalRequest) Reset() {
 	*x = CopyLocalRequest{}
-	mi := &file_plugin_proto_msgTypes[12]
+	mi := &file_plugin_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -956,7 +1183,7 @@ func (x *CopyLocalRequest) String() string {
 func (*CopyLocalRequest) ProtoMessage() {}
 
 func (x *CopyLocalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[12]
+	mi := &file_plugin_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -969,7 +1196,7 @@ func (x *CopyLocalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyLocalRequest.ProtoReflect.Descriptor instead.
 func (*CopyLocalRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{12}
+	return file_plugin_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CopyLocalRequest) GetEnvironmentId() string {
@@ -1001,7 +1228,7 @@ type CopyLocalResponse struct {
 
 func (x *CopyLocalResponse) Reset() {
 	*x = CopyLocalResponse{}
-	mi := &file_plugin_proto_msgTypes[13]
+	mi := &file_plugin_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1013,7 +1240,7 @@ func (x *CopyLocalResponse) String() string {
 func (*CopyLocalResponse) ProtoMessage() {}
 
 func (x *CopyLocalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[13]
+	mi := &file_plugin_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1026,20 +1253,21 @@ func (x *CopyLocalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyLocalResponse.ProtoReflect.Descriptor instead.
 func (*CopyLocalResponse) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{13}
+	return file_plugin_proto_rawDescGZIP(), []int{16}
 }
 
 type CopyOutRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	SrcPath       string                 `protobuf:"bytes,2,opt,name=src_path,json=srcPath,proto3" json:"src_path,omitempty"`
+	// src_path is the path inside the environment to archive and stream out.
+	SrcPath       string `protobuf:"bytes,2,opt,name=src_path,json=srcPath,proto3" json:"src_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CopyOutRequest) Reset() {
 	*x = CopyOutRequest{}
-	mi := &file_plugin_proto_msgTypes[14]
+	mi := &file_plugin_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1051,7 +1279,7 @@ func (x *CopyOutRequest) String() string {
 func (*CopyOutRequest) ProtoMessage() {}
 
 func (x *CopyOutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[14]
+	mi := &file_plugin_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1064,7 +1292,7 @@ func (x *CopyOutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyOutRequest.ProtoReflect.Descriptor instead.
 func (*CopyOutRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{14}
+	return file_plugin_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CopyOutRequest) GetEnvironmentId() string {
@@ -1082,15 +1310,16 @@ func (x *CopyOutRequest) GetSrcPath() string {
 }
 
 type CopyOutChunk struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// data is a chunk of the tar archive.
+	Data          []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CopyOutChunk) Reset() {
 	*x = CopyOutChunk{}
-	mi := &file_plugin_proto_msgTypes[15]
+	mi := &file_plugin_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1102,7 +1331,7 @@ func (x *CopyOutChunk) String() string {
 func (*CopyOutChunk) ProtoMessage() {}
 
 func (x *CopyOutChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[15]
+	mi := &file_plugin_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1115,7 +1344,7 @@ func (x *CopyOutChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyOutChunk.ProtoReflect.Descriptor instead.
 func (*CopyOutChunk) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{15}
+	return file_plugin_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CopyOutChunk) GetData() []byte {
@@ -1128,15 +1357,17 @@ func (x *CopyOutChunk) GetData() []byte {
 type UpdateEnvRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	SrcPath       string                 `protobuf:"bytes,2,opt,name=src_path,json=srcPath,proto3" json:"src_path,omitempty"`
-	CurrentEnv    map[string]string      `protobuf:"bytes,3,rep,name=current_env,json=currentEnv,proto3" json:"current_env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// src_path is the env file inside the environment to read.
+	SrcPath string `protobuf:"bytes,2,opt,name=src_path,json=srcPath,proto3" json:"src_path,omitempty"`
+	// current_env is the runner's current view, which the file is merged over.
+	CurrentEnv    map[string]string `protobuf:"bytes,3,rep,name=current_env,json=currentEnv,proto3" json:"current_env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateEnvRequest) Reset() {
 	*x = UpdateEnvRequest{}
-	mi := &file_plugin_proto_msgTypes[16]
+	mi := &file_plugin_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1148,7 +1379,7 @@ func (x *UpdateEnvRequest) String() string {
 func (*UpdateEnvRequest) ProtoMessage() {}
 
 func (x *UpdateEnvRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[16]
+	mi := &file_plugin_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1161,7 +1392,7 @@ func (x *UpdateEnvRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateEnvRequest.ProtoReflect.Descriptor instead.
 func (*UpdateEnvRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{16}
+	return file_plugin_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpdateEnvRequest) GetEnvironmentId() string {
@@ -1186,15 +1417,16 @@ func (x *UpdateEnvRequest) GetCurrentEnv() map[string]string {
 }
 
 type UpdateEnvResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UpdatedEnv    map[string]string      `protobuf:"bytes,1,rep,name=updated_env,json=updatedEnv,proto3" json:"updated_env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// updated_env is current_env with the file's variables applied.
+	UpdatedEnv    map[string]string `protobuf:"bytes,1,rep,name=updated_env,json=updatedEnv,proto3" json:"updated_env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateEnvResponse) Reset() {
 	*x = UpdateEnvResponse{}
-	mi := &file_plugin_proto_msgTypes[17]
+	mi := &file_plugin_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1206,7 +1438,7 @@ func (x *UpdateEnvResponse) String() string {
 func (*UpdateEnvResponse) ProtoMessage() {}
 
 func (x *UpdateEnvResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[17]
+	mi := &file_plugin_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1219,7 +1451,7 @@ func (x *UpdateEnvResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateEnvResponse.ProtoReflect.Descriptor instead.
 func (*UpdateEnvResponse) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{17}
+	return file_plugin_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpdateEnvResponse) GetUpdatedEnv() map[string]string {
@@ -1238,7 +1470,7 @@ type IsHealthyRequest struct {
 
 func (x *IsHealthyRequest) Reset() {
 	*x = IsHealthyRequest{}
-	mi := &file_plugin_proto_msgTypes[18]
+	mi := &file_plugin_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1250,7 +1482,7 @@ func (x *IsHealthyRequest) String() string {
 func (*IsHealthyRequest) ProtoMessage() {}
 
 func (x *IsHealthyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[18]
+	mi := &file_plugin_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1263,7 +1495,7 @@ func (x *IsHealthyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsHealthyRequest.ProtoReflect.Descriptor instead.
 func (*IsHealthyRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{18}
+	return file_plugin_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *IsHealthyRequest) GetEnvironmentId() string {
@@ -1274,15 +1506,16 @@ func (x *IsHealthyRequest) GetEnvironmentId() string {
 }
 
 type IsHealthyResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Wait          *durationpb.Duration   `protobuf:"bytes,1,opt,name=wait,proto3" json:"wait,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// wait is how long the runner should back off before checking again.
+	Wait          *durationpb.Duration `protobuf:"bytes,1,opt,name=wait,proto3" json:"wait,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IsHealthyResponse) Reset() {
 	*x = IsHealthyResponse{}
-	mi := &file_plugin_proto_msgTypes[19]
+	mi := &file_plugin_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1294,7 +1527,7 @@ func (x *IsHealthyResponse) String() string {
 func (*IsHealthyResponse) ProtoMessage() {}
 
 func (x *IsHealthyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[19]
+	mi := &file_plugin_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1307,7 +1540,7 @@ func (x *IsHealthyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsHealthyResponse.ProtoReflect.Descriptor instead.
 func (*IsHealthyResponse) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{19}
+	return file_plugin_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *IsHealthyResponse) GetWait() *durationpb.Duration {
@@ -1326,7 +1559,7 @@ type RemoveRequest struct {
 
 func (x *RemoveRequest) Reset() {
 	*x = RemoveRequest{}
-	mi := &file_plugin_proto_msgTypes[20]
+	mi := &file_plugin_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1338,7 +1571,7 @@ func (x *RemoveRequest) String() string {
 func (*RemoveRequest) ProtoMessage() {}
 
 func (x *RemoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[20]
+	mi := &file_plugin_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1351,7 +1584,7 @@ func (x *RemoveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveRequest.ProtoReflect.Descriptor instead.
 func (*RemoveRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{20}
+	return file_plugin_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RemoveRequest) GetEnvironmentId() string {
@@ -1369,7 +1602,7 @@ type RemoveResponse struct {
 
 func (x *RemoveResponse) Reset() {
 	*x = RemoveResponse{}
-	mi := &file_plugin_proto_msgTypes[21]
+	mi := &file_plugin_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1381,7 +1614,7 @@ func (x *RemoveResponse) String() string {
 func (*RemoveResponse) ProtoMessage() {}
 
 func (x *RemoveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[21]
+	mi := &file_plugin_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1394,7 +1627,7 @@ func (x *RemoveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveResponse.ProtoReflect.Descriptor instead.
 func (*RemoveResponse) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{21}
+	return file_plugin_proto_rawDescGZIP(), []int{24}
 }
 
 var File_plugin_proto protoreflect.FileDescriptor
@@ -1402,7 +1635,7 @@ var File_plugin_proto protoreflect.FileDescriptor
 const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\fplugin.proto\x12\tplugin.v1\x1a\x1egoogle/protobuf/duration.proto\"\x15\n" +
-	"\x13CapabilitiesRequest\"\xab\x06\n" +
+	"\x13CapabilitiesRequest\"\x81\x06\n" +
 	"\x14CapabilitiesResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
 	"\troot_path\x18\x02 \x01(\tR\brootPath\x12\x19\n" +
@@ -1417,12 +1650,11 @@ const file_plugin_proto_rawDesc = "" +
 	" \x01(\bR\x19supportsServiceContainers\x12@\n" +
 	"\x1cenvironment_case_insensitive\x18\v \x01(\bR\x1aenvironmentCaseInsensitive\x12Y\n" +
 	"\x0erunner_context\x18\f \x03(\v22.plugin.v1.CapabilitiesResponse.RunnerContextEntryR\rrunnerContext\x12.\n" +
-	"\x13supports_local_copy\x18\r \x01(\bR\x11supportsLocalCopy\x12.\n" +
-	"\x13delegates_to_docker\x18\x0e \x01(\bR\x11delegatesToDocker\x12)\n" +
+	"\x13supports_local_copy\x18\r \x01(\bR\x11supportsLocalCopy\x12)\n" +
 	"\x10protocol_version\x18\x0f \x01(\rR\x0fprotocolVersion\x1a@\n" +
 	"\x12RunnerContextEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc2\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x0e\x10\x0f\"\xc2\x01\n" +
 	"\x10ServiceContainer\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05image\x18\x02 \x01(\tR\x05image\x126\n" +
@@ -1430,11 +1662,11 @@ const file_plugin_proto_rawDesc = "" +
 	"\x05ports\x18\x04 \x03(\tR\x05ports\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xae\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9b\x04\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05image\x18\x01 \x01(\tR\x05image\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x10\n" +
-	"\x03env\x18\x03 \x03(\tR\x03env\x12\x1f\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x123\n" +
+	"\x03env\x18\x03 \x03(\v2!.plugin.v1.CreateRequest.EnvEntryR\x03env\x12\x1f\n" +
 	"\vworking_dir\x18\x04 \x01(\tR\n" +
 	"workingDir\x12\x17\n" +
 	"\acap_add\x18\x05 \x03(\tR\x06capAdd\x12\x19\n" +
@@ -1442,21 +1674,39 @@ const file_plugin_proto_rawDesc = "" +
 	"\bservices\x18\a \x03(\v2\x1b.plugin.v1.ServiceContainerR\bservices\x12U\n" +
 	"\x0fbackend_options\x18\b \x03(\v2,.plugin.v1.CreateRequest.BackendOptionsEntryR\x0ebackendOptions\x12\x1d\n" +
 	"\n" +
-	"force_pull\x18\t \x01(\bR\tforcePull\x12\x1a\n" +
+	"force_pull\x18\t \x01(\bR\tforcePull\x12\x1f\n" +
 	"\bplatform\x18\n" +
-	" \x01(\tR\bplatform\x1aA\n" +
+	" \x01(\tH\x00R\bplatform\x88\x01\x01\x1a6\n" +
+	"\bEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
 	"\x13BackendOptionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"n\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\v\n" +
+	"\t_platform\"7\n" +
 	"\x0eCreateResponse\x12%\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x125\n" +
-	"\bdelegate\x18\x02 \x01(\v2\x19.plugin.v1.DockerDelegateR\bdelegate\"\xb0\x01\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\xb0\x01\n" +
 	"\x0eDockerDelegate\x12\x1a\n" +
 	"\bendpoint\x18\x01 \x01(\tR\bendpoint\x12\x15\n" +
 	"\x06tls_ca\x18\x02 \x01(\fR\x05tlsCa\x12\x19\n" +
 	"\btls_cert\x18\x03 \x01(\fR\atlsCert\x12\x17\n" +
 	"\atls_key\x18\x04 \x01(\fR\x06tlsKey\x127\n" +
-	"\x18tls_insecure_skip_verify\x18\x05 \x01(\bR\x15tlsInsecureSkipVerify\"5\n" +
+	"\x18tls_insecure_skip_verify\x18\x05 \x01(\bR\x15tlsInsecureSkipVerify\"[\n" +
+	"\x1aTunnelCapabilitiesResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12)\n" +
+	"\x10protocol_version\x18\x02 \x01(\rR\x0fprotocolVersion\"\x82\x02\n" +
+	"\x13TunnelCreateRequest\x12[\n" +
+	"\x0fbackend_options\x18\x01 \x03(\v22.plugin.v1.TunnelCreateRequest.BackendOptionsEntryR\x0ebackendOptions\x12\x1f\n" +
+	"\bplatform\x18\x02 \x01(\tH\x00R\bplatform\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"force_pull\x18\x03 \x01(\bR\tforcePull\x1aA\n" +
+	"\x13BackendOptionsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\v\n" +
+	"\t_platform\"t\n" +
+	"\x14TunnelCreateResponse\x12%\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x125\n" +
+	"\bdelegate\x18\x02 \x01(\v2\x19.plugin.v1.DockerDelegateR\bdelegate\"5\n" +
 	"\fStartRequest\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\x91\x01\n" +
 	"\rStartResponse\x12C\n" +
@@ -1531,6 +1781,10 @@ const file_plugin_proto_rawDesc = "" +
 	"\aCopyOut\x12\x19.plugin.v1.CopyOutRequest\x1a\x17.plugin.v1.CopyOutChunk0\x01\x12F\n" +
 	"\tUpdateEnv\x12\x1b.plugin.v1.UpdateEnvRequest\x1a\x1c.plugin.v1.UpdateEnvResponse\x12F\n" +
 	"\tIsHealthy\x12\x1b.plugin.v1.IsHealthyRequest\x1a\x1c.plugin.v1.IsHealthyResponse\x12=\n" +
+	"\x06Remove\x12\x18.plugin.v1.RemoveRequest\x1a\x19.plugin.v1.RemoveResponse2\xf5\x01\n" +
+	"\x12DockerTunnelPlugin\x12U\n" +
+	"\fCapabilities\x12\x1e.plugin.v1.CapabilitiesRequest\x1a%.plugin.v1.TunnelCapabilitiesResponse\x12I\n" +
+	"\x06Create\x12\x1e.plugin.v1.TunnelCreateRequest\x1a\x1f.plugin.v1.TunnelCreateResponse\x12=\n" +
 	"\x06Remove\x12\x18.plugin.v1.RemoveRequest\x1a\x19.plugin.v1.RemoveResponseBBZ@code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1;pluginv1b\x06proto3"
 
 var (
@@ -1547,79 +1801,92 @@ func file_plugin_proto_rawDescGZIP() []byte {
 
 var (
 	file_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-	file_plugin_proto_msgTypes  = make([]protoimpl.MessageInfo, 29)
+	file_plugin_proto_msgTypes  = make([]protoimpl.MessageInfo, 34)
 	file_plugin_proto_goTypes   = []any{
-		ExecOutput_Stream(0),         // 0: plugin.v1.ExecOutput.Stream
-		(*CapabilitiesRequest)(nil),  // 1: plugin.v1.CapabilitiesRequest
-		(*CapabilitiesResponse)(nil), // 2: plugin.v1.CapabilitiesResponse
-		(*ServiceContainer)(nil),     // 3: plugin.v1.ServiceContainer
-		(*CreateRequest)(nil),        // 4: plugin.v1.CreateRequest
-		(*CreateResponse)(nil),       // 5: plugin.v1.CreateResponse
-		(*DockerDelegate)(nil),       // 6: plugin.v1.DockerDelegate
-		(*StartRequest)(nil),         // 7: plugin.v1.StartRequest
-		(*StartResponse)(nil),        // 8: plugin.v1.StartResponse
-		(*ExecRequest)(nil),          // 9: plugin.v1.ExecRequest
-		(*ExecOutput)(nil),           // 10: plugin.v1.ExecOutput
-		(*CopyInChunk)(nil),          // 11: plugin.v1.CopyInChunk
-		(*CopyInResponse)(nil),       // 12: plugin.v1.CopyInResponse
-		(*CopyLocalRequest)(nil),     // 13: plugin.v1.CopyLocalRequest
-		(*CopyLocalResponse)(nil),    // 14: plugin.v1.CopyLocalResponse
-		(*CopyOutRequest)(nil),       // 15: plugin.v1.CopyOutRequest
-		(*CopyOutChunk)(nil),         // 16: plugin.v1.CopyOutChunk
-		(*UpdateEnvRequest)(nil),     // 17: plugin.v1.UpdateEnvRequest
-		(*UpdateEnvResponse)(nil),    // 18: plugin.v1.UpdateEnvResponse
-		(*IsHealthyRequest)(nil),     // 19: plugin.v1.IsHealthyRequest
-		(*IsHealthyResponse)(nil),    // 20: plugin.v1.IsHealthyResponse
-		(*RemoveRequest)(nil),        // 21: plugin.v1.RemoveRequest
-		(*RemoveResponse)(nil),       // 22: plugin.v1.RemoveResponse
-		nil,                          // 23: plugin.v1.CapabilitiesResponse.RunnerContextEntry
-		nil,                          // 24: plugin.v1.ServiceContainer.EnvEntry
-		nil,                          // 25: plugin.v1.CreateRequest.BackendOptionsEntry
-		nil,                          // 26: plugin.v1.StartResponse.ImageEnvEntry
-		nil,                          // 27: plugin.v1.ExecRequest.EnvEntry
-		nil,                          // 28: plugin.v1.UpdateEnvRequest.CurrentEnvEntry
-		nil,                          // 29: plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
-		(*durationpb.Duration)(nil),  // 30: google.protobuf.Duration
+		ExecOutput_Stream(0),               // 0: plugin.v1.ExecOutput.Stream
+		(*CapabilitiesRequest)(nil),        // 1: plugin.v1.CapabilitiesRequest
+		(*CapabilitiesResponse)(nil),       // 2: plugin.v1.CapabilitiesResponse
+		(*ServiceContainer)(nil),           // 3: plugin.v1.ServiceContainer
+		(*CreateRequest)(nil),              // 4: plugin.v1.CreateRequest
+		(*CreateResponse)(nil),             // 5: plugin.v1.CreateResponse
+		(*DockerDelegate)(nil),             // 6: plugin.v1.DockerDelegate
+		(*TunnelCapabilitiesResponse)(nil), // 7: plugin.v1.TunnelCapabilitiesResponse
+		(*TunnelCreateRequest)(nil),        // 8: plugin.v1.TunnelCreateRequest
+		(*TunnelCreateResponse)(nil),       // 9: plugin.v1.TunnelCreateResponse
+		(*StartRequest)(nil),               // 10: plugin.v1.StartRequest
+		(*StartResponse)(nil),              // 11: plugin.v1.StartResponse
+		(*ExecRequest)(nil),                // 12: plugin.v1.ExecRequest
+		(*ExecOutput)(nil),                 // 13: plugin.v1.ExecOutput
+		(*CopyInChunk)(nil),                // 14: plugin.v1.CopyInChunk
+		(*CopyInResponse)(nil),             // 15: plugin.v1.CopyInResponse
+		(*CopyLocalRequest)(nil),           // 16: plugin.v1.CopyLocalRequest
+		(*CopyLocalResponse)(nil),          // 17: plugin.v1.CopyLocalResponse
+		(*CopyOutRequest)(nil),             // 18: plugin.v1.CopyOutRequest
+		(*CopyOutChunk)(nil),               // 19: plugin.v1.CopyOutChunk
+		(*UpdateEnvRequest)(nil),           // 20: plugin.v1.UpdateEnvRequest
+		(*UpdateEnvResponse)(nil),          // 21: plugin.v1.UpdateEnvResponse
+		(*IsHealthyRequest)(nil),           // 22: plugin.v1.IsHealthyRequest
+		(*IsHealthyResponse)(nil),          // 23: plugin.v1.IsHealthyResponse
+		(*RemoveRequest)(nil),              // 24: plugin.v1.RemoveRequest
+		(*RemoveResponse)(nil),             // 25: plugin.v1.RemoveResponse
+		nil,                                // 26: plugin.v1.CapabilitiesResponse.RunnerContextEntry
+		nil,                                // 27: plugin.v1.ServiceContainer.EnvEntry
+		nil,                                // 28: plugin.v1.CreateRequest.EnvEntry
+		nil,                                // 29: plugin.v1.CreateRequest.BackendOptionsEntry
+		nil,                                // 30: plugin.v1.TunnelCreateRequest.BackendOptionsEntry
+		nil,                                // 31: plugin.v1.StartResponse.ImageEnvEntry
+		nil,                                // 32: plugin.v1.ExecRequest.EnvEntry
+		nil,                                // 33: plugin.v1.UpdateEnvRequest.CurrentEnvEntry
+		nil,                                // 34: plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
+		(*durationpb.Duration)(nil),        // 35: google.protobuf.Duration
 	}
 )
 
 var file_plugin_proto_depIdxs = []int32{
-	23, // 0: plugin.v1.CapabilitiesResponse.runner_context:type_name -> plugin.v1.CapabilitiesResponse.RunnerContextEntry
-	24, // 1: plugin.v1.ServiceContainer.env:type_name -> plugin.v1.ServiceContainer.EnvEntry
-	3,  // 2: plugin.v1.CreateRequest.services:type_name -> plugin.v1.ServiceContainer
-	25, // 3: plugin.v1.CreateRequest.backend_options:type_name -> plugin.v1.CreateRequest.BackendOptionsEntry
-	6,  // 4: plugin.v1.CreateResponse.delegate:type_name -> plugin.v1.DockerDelegate
-	26, // 5: plugin.v1.StartResponse.image_env:type_name -> plugin.v1.StartResponse.ImageEnvEntry
-	27, // 6: plugin.v1.ExecRequest.env:type_name -> plugin.v1.ExecRequest.EnvEntry
-	0,  // 7: plugin.v1.ExecOutput.stream:type_name -> plugin.v1.ExecOutput.Stream
-	28, // 8: plugin.v1.UpdateEnvRequest.current_env:type_name -> plugin.v1.UpdateEnvRequest.CurrentEnvEntry
-	29, // 9: plugin.v1.UpdateEnvResponse.updated_env:type_name -> plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
-	30, // 10: plugin.v1.IsHealthyResponse.wait:type_name -> google.protobuf.Duration
-	1,  // 11: plugin.v1.BackendPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
-	4,  // 12: plugin.v1.BackendPlugin.Create:input_type -> plugin.v1.CreateRequest
-	7,  // 13: plugin.v1.BackendPlugin.Start:input_type -> plugin.v1.StartRequest
-	9,  // 14: plugin.v1.BackendPlugin.Exec:input_type -> plugin.v1.ExecRequest
-	11, // 15: plugin.v1.BackendPlugin.CopyIn:input_type -> plugin.v1.CopyInChunk
-	13, // 16: plugin.v1.BackendPlugin.CopyLocal:input_type -> plugin.v1.CopyLocalRequest
-	15, // 17: plugin.v1.BackendPlugin.CopyOut:input_type -> plugin.v1.CopyOutRequest
-	17, // 18: plugin.v1.BackendPlugin.UpdateEnv:input_type -> plugin.v1.UpdateEnvRequest
-	19, // 19: plugin.v1.BackendPlugin.IsHealthy:input_type -> plugin.v1.IsHealthyRequest
-	21, // 20: plugin.v1.BackendPlugin.Remove:input_type -> plugin.v1.RemoveRequest
-	2,  // 21: plugin.v1.BackendPlugin.Capabilities:output_type -> plugin.v1.CapabilitiesResponse
-	5,  // 22: plugin.v1.BackendPlugin.Create:output_type -> plugin.v1.CreateResponse
-	8,  // 23: plugin.v1.BackendPlugin.Start:output_type -> plugin.v1.StartResponse
-	10, // 24: plugin.v1.BackendPlugin.Exec:output_type -> plugin.v1.ExecOutput
-	12, // 25: plugin.v1.BackendPlugin.CopyIn:output_type -> plugin.v1.CopyInResponse
-	14, // 26: plugin.v1.BackendPlugin.CopyLocal:output_type -> plugin.v1.CopyLocalResponse
-	16, // 27: plugin.v1.BackendPlugin.CopyOut:output_type -> plugin.v1.CopyOutChunk
-	18, // 28: plugin.v1.BackendPlugin.UpdateEnv:output_type -> plugin.v1.UpdateEnvResponse
-	20, // 29: plugin.v1.BackendPlugin.IsHealthy:output_type -> plugin.v1.IsHealthyResponse
-	22, // 30: plugin.v1.BackendPlugin.Remove:output_type -> plugin.v1.RemoveResponse
-	21, // [21:31] is the sub-list for method output_type
-	11, // [11:21] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	26, // 0: plugin.v1.CapabilitiesResponse.runner_context:type_name -> plugin.v1.CapabilitiesResponse.RunnerContextEntry
+	27, // 1: plugin.v1.ServiceContainer.env:type_name -> plugin.v1.ServiceContainer.EnvEntry
+	28, // 2: plugin.v1.CreateRequest.env:type_name -> plugin.v1.CreateRequest.EnvEntry
+	3,  // 3: plugin.v1.CreateRequest.services:type_name -> plugin.v1.ServiceContainer
+	29, // 4: plugin.v1.CreateRequest.backend_options:type_name -> plugin.v1.CreateRequest.BackendOptionsEntry
+	30, // 5: plugin.v1.TunnelCreateRequest.backend_options:type_name -> plugin.v1.TunnelCreateRequest.BackendOptionsEntry
+	6,  // 6: plugin.v1.TunnelCreateResponse.delegate:type_name -> plugin.v1.DockerDelegate
+	31, // 7: plugin.v1.StartResponse.image_env:type_name -> plugin.v1.StartResponse.ImageEnvEntry
+	32, // 8: plugin.v1.ExecRequest.env:type_name -> plugin.v1.ExecRequest.EnvEntry
+	0,  // 9: plugin.v1.ExecOutput.stream:type_name -> plugin.v1.ExecOutput.Stream
+	33, // 10: plugin.v1.UpdateEnvRequest.current_env:type_name -> plugin.v1.UpdateEnvRequest.CurrentEnvEntry
+	34, // 11: plugin.v1.UpdateEnvResponse.updated_env:type_name -> plugin.v1.UpdateEnvResponse.UpdatedEnvEntry
+	35, // 12: plugin.v1.IsHealthyResponse.wait:type_name -> google.protobuf.Duration
+	1,  // 13: plugin.v1.BackendPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
+	4,  // 14: plugin.v1.BackendPlugin.Create:input_type -> plugin.v1.CreateRequest
+	10, // 15: plugin.v1.BackendPlugin.Start:input_type -> plugin.v1.StartRequest
+	12, // 16: plugin.v1.BackendPlugin.Exec:input_type -> plugin.v1.ExecRequest
+	14, // 17: plugin.v1.BackendPlugin.CopyIn:input_type -> plugin.v1.CopyInChunk
+	16, // 18: plugin.v1.BackendPlugin.CopyLocal:input_type -> plugin.v1.CopyLocalRequest
+	18, // 19: plugin.v1.BackendPlugin.CopyOut:input_type -> plugin.v1.CopyOutRequest
+	20, // 20: plugin.v1.BackendPlugin.UpdateEnv:input_type -> plugin.v1.UpdateEnvRequest
+	22, // 21: plugin.v1.BackendPlugin.IsHealthy:input_type -> plugin.v1.IsHealthyRequest
+	24, // 22: plugin.v1.BackendPlugin.Remove:input_type -> plugin.v1.RemoveRequest
+	1,  // 23: plugin.v1.DockerTunnelPlugin.Capabilities:input_type -> plugin.v1.CapabilitiesRequest
+	8,  // 24: plugin.v1.DockerTunnelPlugin.Create:input_type -> plugin.v1.TunnelCreateRequest
+	24, // 25: plugin.v1.DockerTunnelPlugin.Remove:input_type -> plugin.v1.RemoveRequest
+	2,  // 26: plugin.v1.BackendPlugin.Capabilities:output_type -> plugin.v1.CapabilitiesResponse
+	5,  // 27: plugin.v1.BackendPlugin.Create:output_type -> plugin.v1.CreateResponse
+	11, // 28: plugin.v1.BackendPlugin.Start:output_type -> plugin.v1.StartResponse
+	13, // 29: plugin.v1.BackendPlugin.Exec:output_type -> plugin.v1.ExecOutput
+	15, // 30: plugin.v1.BackendPlugin.CopyIn:output_type -> plugin.v1.CopyInResponse
+	17, // 31: plugin.v1.BackendPlugin.CopyLocal:output_type -> plugin.v1.CopyLocalResponse
+	19, // 32: plugin.v1.BackendPlugin.CopyOut:output_type -> plugin.v1.CopyOutChunk
+	21, // 33: plugin.v1.BackendPlugin.UpdateEnv:output_type -> plugin.v1.UpdateEnvResponse
+	23, // 34: plugin.v1.BackendPlugin.IsHealthy:output_type -> plugin.v1.IsHealthyResponse
+	25, // 35: plugin.v1.BackendPlugin.Remove:output_type -> plugin.v1.RemoveResponse
+	7,  // 36: plugin.v1.DockerTunnelPlugin.Capabilities:output_type -> plugin.v1.TunnelCapabilitiesResponse
+	9,  // 37: plugin.v1.DockerTunnelPlugin.Create:output_type -> plugin.v1.TunnelCreateResponse
+	25, // 38: plugin.v1.DockerTunnelPlugin.Remove:output_type -> plugin.v1.RemoveResponse
+	26, // [26:39] is the sub-list for method output_type
+	13, // [13:26] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_plugin_proto_init() }
@@ -1627,15 +1894,17 @@ func file_plugin_proto_init() {
 	if File_plugin_proto != nil {
 		return
 	}
+	file_plugin_proto_msgTypes[3].OneofWrappers = []any{}
+	file_plugin_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plugin_proto_rawDesc), len(file_plugin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   29,
+			NumMessages:   34,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_plugin_proto_goTypes,
 		DependencyIndexes: file_plugin_proto_depIdxs,

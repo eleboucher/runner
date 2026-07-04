@@ -6,14 +6,37 @@ import "google/protobuf/duration.proto";
 
 option go_package = "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1;pluginv1";
 
-// BackendPlugin is the gRPC service every plugin server must implement.
-// Plugin servers must also expose the standard grpc.health.v1 service.
+// A plugin is a standalone gRPC server the runner connects to. It implements
+// exactly one of the services below, and the runner is told which one by its
+// configuration (backends vs. Docker tunnels are distinct deployment shapes):
+//
+//   - BackendPlugin: the plugin owns the whole execution environment and every
+//     container operation runs through it (Kubernetes, a microVM that runs
+//     commands over its own transport, host mode, ...).
+//   - DockerTunnelPlugin: the plugin only boots an environment (typically a VM)
+//     that exposes a Docker daemon; the runner drives containers against that
+//     daemon with its built-in Docker back-end. The plugin implements no
+//     exec/copy methods at all.
+//
+// Every plugin server must also expose the standard grpc.health.v1 service.
+//
+// Errors are reported with gRPC status codes. Conventions the runner relies on:
+//   - NotFound: environment_id does not (or no longer) exists.
+//   - InvalidArgument: a malformed request (e.g. CopyIn framing violations).
+//   - Unavailable: the plugin is gone; the runner fails the job.
+// The status message is surfaced to the job log; no structured error details
+// are defined by this version of the protocol.
+
+// BackendPlugin owns the full lifecycle of an execution environment and every
+// container operation within it.
 service BackendPlugin {
-  // Capabilities returns the backend's name, filesystem layout, and feature flags.
+  // Capabilities returns the backend's name, filesystem layout, and feature
+  // flags. The runner calls it once at connection time.
   rpc Capabilities(CapabilitiesRequest) returns (CapabilitiesResponse);
 
-  // Create provisions a new execution environment.
-  // Image pulling is folded in; service containers are passed here.
+  // Create provisions a new execution environment. Image pulling is folded in
+  // (see force_pull); service containers are passed here so the backend can
+  // realise them however fits its platform.
   rpc Create(CreateRequest) returns (CreateResponse);
 
   // Start boots a previously created environment.
@@ -25,13 +48,16 @@ service BackendPlugin {
   // CopyIn transfers a tar archive into the environment.
   rpc CopyIn(stream CopyInChunk) returns (CopyInResponse);
 
-  // CopyLocal copies a path from a volume shared with the runner into the environment.
+  // CopyLocal copies a path from a volume shared with the runner into the
+  // environment. Only called when CapabilitiesResponse.supports_local_copy is
+  // true; a faster alternative to streaming the same bytes through CopyIn.
   rpc CopyLocal(CopyLocalRequest) returns (CopyLocalResponse);
 
   // CopyOut transfers a tar archive out of the environment.
   rpc CopyOut(CopyOutRequest) returns (stream CopyOutChunk);
 
-  // UpdateEnv reads an env file inside the environment and returns parsed variables.
+  // UpdateEnv reads an env file inside the environment and returns the parsed
+  // variables merged over the ones the runner already knows.
   rpc UpdateEnv(UpdateEnvRequest) returns (UpdateEnvResponse);
 
   // IsHealthy checks whether the environment is still running.
@@ -41,97 +67,195 @@ service BackendPlugin {
   rpc Remove(RemoveRequest) returns (RemoveResponse);
 }
 
+// DockerTunnelPlugin boots an environment that exposes a Docker daemon and
+// hands the runner the endpoint to drive it. The runner's built-in Docker
+// back-end then creates the job, service, and step containers against that
+// daemon, so a VM backend (Tart, QEMU, Firecracker, ...) reuses the whole
+// Docker driver instead of reimplementing exec/copy over its own transport.
+service DockerTunnelPlugin {
+  // Capabilities returns the plugin's identity and protocol version. It carries
+  // none of the filesystem/feature fields of a BackendPlugin: the runner learns
+  // those from the Docker daemon the plugin exposes.
+  rpc Capabilities(CapabilitiesRequest) returns (TunnelCapabilitiesResponse);
+
+  // Create boots the environment and returns the Docker endpoint to drive.
+  rpc Create(TunnelCreateRequest) returns (TunnelCreateResponse);
+
+  // Remove tears the environment down.
+  rpc Remove(RemoveRequest) returns (RemoveResponse);
+}
 
 message CapabilitiesRequest {}
 
 message CapabilitiesResponse {
-  string name = 1;
-  string root_path = 2;
-  string act_path = 3;
-  string tool_cache_path = 4;
-  string path_variable_name = 5;
-  string default_path_variable = 6;
-  string path_separator = 7;
-  bool supports_docker_actions = 8;
-  bool manages_own_networking = 9;
-  bool supports_service_containers = 10;
-  bool environment_case_insensitive = 11;
-  map<string, string> runner_context = 12;
-  bool supports_local_copy = 13;
-  // delegates_to_docker indicates the plugin only manages an execution
-  // environment lifecycle and exposes a Docker daemon endpoint for the
-  // runner to drive containers against. When true, the runner ignores
-  // Exec/CopyIn/CopyLocal/CopyOut/UpdateEnv/IsHealthy on this plugin and
-  // talks directly to the daemon returned in CreateResponse.delegate.
-  bool delegates_to_docker = 14;
+  reserved 14; // was delegates_to_docker; delegation is now DockerTunnelPlugin.
 
+  // name identifies the backend (e.g. "kubernetes"); used in logs and as the
+  // container back-end name.
+  string name = 1;
+  // root_path is the base directory the runner lays workflow files out under.
+  string root_path = 2;
+  // act_path is where the runner stages its helper binaries and action code.
+  string act_path = 3;
+  // tool_cache_path is exposed to jobs as RUNNER_TOOL_CACHE.
+  string tool_cache_path = 4;
+  // path_variable_name is the search-path environment variable ("PATH" on
+  // POSIX, "Path" on Windows). Defaults to "PATH" when empty.
+  string path_variable_name = 5;
+  // default_path_variable is the search path used when a job sets none.
+  string default_path_variable = 6;
+  // path_separator joins entries of path_variable_name (":" or ";"). Defaults
+  // to ":" when empty.
+  string path_separator = 7;
+  // supports_docker_actions gates `uses: docker://` and container actions. When
+  // false, the runner errors upfront on a job that needs them.
+  bool supports_docker_actions = 8;
+  // manages_own_networking tells the runner the backend provides connectivity
+  // itself; the runner then skips creating/attaching a Docker-style network.
+  bool manages_own_networking = 9;
+  // supports_service_containers gates the workflow `services:` block. When
+  // false, the runner errors upfront on a job that declares services.
+  bool supports_service_containers = 10;
+  // environment_case_insensitive marks environments whose variable names are
+  // case-insensitive (Windows), so the runner de-duplicates accordingly.
+  bool environment_case_insensitive = 11;
+  // runner_context carries backend-provided values for the Actions runner
+  // context (os, arch, temp, tool_cache). Treated as opaque key/values.
+  map<string, string> runner_context = 12;
+  // supports_local_copy advertises the CopyLocal fast path (a volume shared
+  // between runner and environment). When false the runner uses CopyIn.
+  bool supports_local_copy = 13;
   // protocol_version is the plugin protocol the server speaks. The runner
   // rejects a plugin whose version it does not support.
   uint32 protocol_version = 15;
 }
 
-
 message ServiceContainer {
+  // name is the service ID from the workflow `services:` block.
   string name = 1;
+  // image is the backend-defined image reference for the service.
   string image = 2;
+  // env are the service container's environment variables.
   map<string, string> env = 3;
+  // ports are host:container port mappings requested for the service.
   repeated string ports = 4;
 }
 
 message CreateRequest {
+  // image is the backend-defined reference for the job container image. It is
+  // opaque to the protocol; a Docker backend reads it as a Docker image name,
+  // another backend may read it as a VM template, etc.
   string image = 1;
+  // name is a runner-assigned handle for the environment, unique per job.
   string name = 2;
-  repeated string env = 3;
+  // env are the environment variables to seed the job container with.
+  map<string, string> env = 3;
+  // working_dir is the directory commands run in by default.
   string working_dir = 4;
+  // cap_add / cap_drop are Linux container capability adjustments. Backends
+  // that cannot express them (non-container executors) may ignore them.
   repeated string cap_add = 5;
   repeated string cap_drop = 6;
+  // services are the service containers to bring up alongside the job. Only
+  // populated when CapabilitiesResponse.supports_service_containers is true.
   repeated ServiceContainer services = 7;
+  // backend_options are opaque, backend-specific options taken verbatim from
+  // the runner's per-label plugin configuration (e.g. namespace, VM flavour).
   map<string, string> backend_options = 8;
-  // force_pull asks the plugin to re-fetch the image. Plugins that cannot
-  // honor it should still succeed using the cached image.
+  // force_pull asks the backend to re-fetch the image rather than use a cached
+  // copy. Backends that cannot honor it should still succeed with the cache.
   bool force_pull = 9;
-  // platform is the OS/arch (e.g. "linux/amd64") the runner label selected for
-  // image pulls and container creation. Empty means auto-detect.
-  string platform = 10;
+  // platform is an execution-environment-specific value the runner passes
+  // through verbatim (a Docker backend reads it as an OS/arch string like
+  // "linux/amd64"). Omitted when the runner has no selection to convey.
+  // Platform discovery is being reworked; this field is provisional.
+  optional string platform = 10;
 }
 
 message CreateResponse {
+  // environment_id is the handle for all later RPCs targeting this environment.
   string environment_id = 1;
-  // delegate is set iff CapabilitiesResponse.delegates_to_docker is true.
-  // Carries the Docker daemon endpoint and TLS material the runner uses
-  // to drive containers inside the plugin-managed environment.
-  DockerDelegate delegate = 2;
 }
 
-// DockerDelegate carries the address and TLS material for a Docker daemon
-// running inside (or proxied by) the plugin-managed execution environment.
+// DockerDelegate carries the address and TLS material for a Docker daemon a
+// DockerTunnelPlugin exposes (e.g. one running inside a VM it booted).
+//
+// Trust model: the runner already trusts the plugin (it is configured to talk
+// to it). TLS here does not protect the runner from the plugin; it protects the
+// daemon socket from other parties on the environment's network. So:
+//   - Prefer a non-networked endpoint (unix:// socket, vsock, or an SSH tunnel
+//     the plugin sets up). Then no TLS material is needed and the fields below
+//     stay empty.
+//   - Only when the daemon must be reached over a real network should the
+//     plugin supply TLS material, and it should be EPHEMERAL client credentials
+//     scoped to this one throwaway environment (minted at Create, discarded at
+//     Remove) rather than a long-lived or shared identity.
 // All bytes fields are PEM-encoded.
 message DockerDelegate {
-  // endpoint accepts unix:///path, tcp://host:port, or ssh:// addresses.
+  // endpoint is the daemon address: unix://path, tcp://host:port, or ssh://.
   string endpoint = 1;
+  // tls_ca is the CA certificate (public) used to verify the daemon. Empty for
+  // non-networked endpoints.
   bytes tls_ca = 2;
+  // tls_cert / tls_key are the client certificate and its private key the
+  // runner presents to the daemon. Empty for non-networked endpoints; when set,
+  // should be ephemeral and scoped to this environment (see message docs).
   bytes tls_cert = 3;
   bytes tls_key = 4;
-  // tls_insecure_skip_verify disables certificate verification. Intended
-  // for development and bootstrap scenarios with self-signed daemons.
+  // tls_insecure_skip_verify disables certificate verification. Intended for
+  // development and bootstrap scenarios with self-signed daemons only.
   bool tls_insecure_skip_verify = 5;
 }
 
+message TunnelCapabilitiesResponse {
+  // name identifies the tunnel plugin (e.g. "tart"); used in logs.
+  string name = 1;
+  // protocol_version is the plugin protocol the server speaks. The runner
+  // rejects a plugin whose version it does not support.
+  uint32 protocol_version = 2;
+}
+
+message TunnelCreateRequest {
+  // backend_options are opaque, backend-specific options taken verbatim from
+  // the runner's per-label plugin configuration (e.g. VM flavour, base image).
+  map<string, string> backend_options = 1;
+  // platform is an execution-environment-specific value passed through verbatim
+  // (which VM/OS to boot). Omitted when the runner has no selection to convey.
+  // Platform discovery is being reworked; this field is provisional.
+  optional string platform = 2;
+  // force_pull asks the plugin to refresh its base image (e.g. VM template)
+  // rather than use a cached copy. Plugins that cannot honor it should still
+  // succeed with the cache.
+  bool force_pull = 3;
+}
+
+message TunnelCreateResponse {
+  // environment_id is the handle passed to Remove to tear the environment down.
+  string environment_id = 1;
+  // delegate is the Docker daemon the runner drives containers against. Always
+  // set on a successful Create.
+  DockerDelegate delegate = 2;
+}
 
 message StartRequest {
   string environment_id = 1;
 }
 
 message StartResponse {
+  // image_env are environment variables baked into the resolved image (e.g. a
+  // Docker image's ENV). The runner layers them under the job's own variables.
   map<string, string> image_env = 1;
 }
 
-
 message ExecRequest {
   string environment_id = 1;
+  // command is the argv to run; command[0] is the executable.
   repeated string command = 2;
+  // env are environment variables to set for this command.
   map<string, string> env = 3;
+  // user is the user to run as, when the backend supports it (empty = default).
   string user = 4;
+  // workdir overrides the working directory for this command (empty = default).
   string workdir = 5;
 }
 
@@ -140,21 +264,27 @@ message ExecOutput {
     STDOUT = 0;
     STDERR = 1;
   }
+  // stream identifies which output data belongs to.
   Stream stream = 1;
+  // data is a chunk of output bytes.
   bytes data = 2;
+  // exit_code is the command's exit status; only meaningful when done is true.
   int32 exit_code = 3;
+  // done marks the final message of the stream.
   bool done = 4;
+  // error_message describes a failure to run the command (as opposed to the
+  // command itself failing); only meaningful when done is true.
   string error_message = 5;
 }
 
-
-// CopyInChunk frames the client-streaming CopyIn RPC. The first chunk MUST
-// set environment_id and dest_path; subsequent chunks carry only data.
-// Servers MUST reject environment_id or dest_path on later chunks with
-// codes.InvalidArgument.
+// CopyInChunk frames the client-streaming CopyIn RPC. The first chunk MUST set
+// environment_id and dest_path; subsequent chunks carry only data. Servers MUST
+// reject environment_id or dest_path on later chunks with codes.InvalidArgument.
 message CopyInChunk {
   string environment_id = 1;
+  // dest_path is the directory the tar archive is extracted into.
   string dest_path = 2;
+  // data is a chunk of the tar archive.
   bytes data = 3;
 }
 
@@ -162,42 +292,46 @@ message CopyInResponse {}
 
 message CopyLocalRequest {
   string environment_id = 1;
+  // src_path is a path on the volume shared with the runner.
   string src_path = 2;
+  // dest_path is the destination directory inside the environment.
   string dest_path = 3;
 }
 
 message CopyLocalResponse {}
 
-
 message CopyOutRequest {
   string environment_id = 1;
+  // src_path is the path inside the environment to archive and stream out.
   string src_path = 2;
 }
 
 message CopyOutChunk {
+  // data is a chunk of the tar archive.
   bytes data = 1;
 }
 
-
 message UpdateEnvRequest {
   string environment_id = 1;
+  // src_path is the env file inside the environment to read.
   string src_path = 2;
+  // current_env is the runner's current view, which the file is merged over.
   map<string, string> current_env = 3;
 }
 
 message UpdateEnvResponse {
+  // updated_env is current_env with the file's variables applied.
   map<string, string> updated_env = 1;
 }
-
 
 message IsHealthyRequest {
   string environment_id = 1;
 }
 
 message IsHealthyResponse {
+  // wait is how long the runner should back off before checking again.
   google.protobuf.Duration wait = 1;
 }
-
 
 message RemoveRequest {
   string environment_id = 1;

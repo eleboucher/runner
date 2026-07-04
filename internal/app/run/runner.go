@@ -434,6 +434,7 @@ func (r *Runner) buildPluginConfigs() map[string]runner.PluginConfig {
 	for name, p := range r.cfg.Plugins {
 		plugins[name] = runner.PluginConfig{
 			Address: p.Address,
+			Kind:    p.Kind,
 			Options: p.Options,
 		}
 	}
