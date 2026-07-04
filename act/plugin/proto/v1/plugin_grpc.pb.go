@@ -36,13 +36,15 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// BackendPlugin is the gRPC service every plugin server must implement.
-// Plugin servers must also expose the standard grpc.health.v1 service.
+// BackendPlugin owns the full lifecycle of an execution environment and every
+// container operation within it.
 type BackendPluginClient interface {
-	// Capabilities returns the backend's name, filesystem layout, and feature flags.
+	// Capabilities returns the backend's name, filesystem layout, and feature
+	// flags. The runner calls it once at connection time.
 	Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*CapabilitiesResponse, error)
-	// Create provisions a new execution environment.
-	// Image pulling is folded in; service containers are passed here.
+	// Create provisions a new execution environment. Image pulling is folded in
+	// (see force_pull); service containers are passed here so the backend can
+	// realise them however fits its platform.
 	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
 	// Start boots a previously created environment.
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
@@ -50,11 +52,14 @@ type BackendPluginClient interface {
 	Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecOutput], error)
 	// CopyIn transfers a tar archive into the environment.
 	CopyIn(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[CopyInChunk, CopyInResponse], error)
-	// CopyLocal copies a path from a volume shared with the runner into the environment.
+	// CopyLocal copies a path from a volume shared with the runner into the
+	// environment. Only called when CapabilitiesResponse.supports_local_copy is
+	// true; a faster alternative to streaming the same bytes through CopyIn.
 	CopyLocal(ctx context.Context, in *CopyLocalRequest, opts ...grpc.CallOption) (*CopyLocalResponse, error)
 	// CopyOut transfers a tar archive out of the environment.
 	CopyOut(ctx context.Context, in *CopyOutRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CopyOutChunk], error)
-	// UpdateEnv reads an env file inside the environment and returns parsed variables.
+	// UpdateEnv reads an env file inside the environment and returns the parsed
+	// variables merged over the ones the runner already knows.
 	UpdateEnv(ctx context.Context, in *UpdateEnvRequest, opts ...grpc.CallOption) (*UpdateEnvResponse, error)
 	// IsHealthy checks whether the environment is still running.
 	IsHealthy(ctx context.Context, in *IsHealthyRequest, opts ...grpc.CallOption) (*IsHealthyResponse, error)
@@ -195,13 +200,15 @@ func (c *backendPluginClient) Remove(ctx context.Context, in *RemoveRequest, opt
 // All implementations must embed UnimplementedBackendPluginServer
 // for forward compatibility.
 //
-// BackendPlugin is the gRPC service every plugin server must implement.
-// Plugin servers must also expose the standard grpc.health.v1 service.
+// BackendPlugin owns the full lifecycle of an execution environment and every
+// container operation within it.
 type BackendPluginServer interface {
-	// Capabilities returns the backend's name, filesystem layout, and feature flags.
+	// Capabilities returns the backend's name, filesystem layout, and feature
+	// flags. The runner calls it once at connection time.
 	Capabilities(context.Context, *CapabilitiesRequest) (*CapabilitiesResponse, error)
-	// Create provisions a new execution environment.
-	// Image pulling is folded in; service containers are passed here.
+	// Create provisions a new execution environment. Image pulling is folded in
+	// (see force_pull); service containers are passed here so the backend can
+	// realise them however fits its platform.
 	Create(context.Context, *CreateRequest) (*CreateResponse, error)
 	// Start boots a previously created environment.
 	Start(context.Context, *StartRequest) (*StartResponse, error)
@@ -209,11 +216,14 @@ type BackendPluginServer interface {
 	Exec(*ExecRequest, grpc.ServerStreamingServer[ExecOutput]) error
 	// CopyIn transfers a tar archive into the environment.
 	CopyIn(grpc.ClientStreamingServer[CopyInChunk, CopyInResponse]) error
-	// CopyLocal copies a path from a volume shared with the runner into the environment.
+	// CopyLocal copies a path from a volume shared with the runner into the
+	// environment. Only called when CapabilitiesResponse.supports_local_copy is
+	// true; a faster alternative to streaming the same bytes through CopyIn.
 	CopyLocal(context.Context, *CopyLocalRequest) (*CopyLocalResponse, error)
 	// CopyOut transfers a tar archive out of the environment.
 	CopyOut(*CopyOutRequest, grpc.ServerStreamingServer[CopyOutChunk]) error
-	// UpdateEnv reads an env file inside the environment and returns parsed variables.
+	// UpdateEnv reads an env file inside the environment and returns the parsed
+	// variables merged over the ones the runner already knows.
 	UpdateEnv(context.Context, *UpdateEnvRequest) (*UpdateEnvResponse, error)
 	// IsHealthy checks whether the environment is still running.
 	IsHealthy(context.Context, *IsHealthyRequest) (*IsHealthyResponse, error)
@@ -497,5 +507,207 @@ var BackendPlugin_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
+	Metadata: "plugin.proto",
+}
+
+const (
+	DockerTunnelPlugin_Capabilities_FullMethodName = "/plugin.v1.DockerTunnelPlugin/Capabilities"
+	DockerTunnelPlugin_Create_FullMethodName       = "/plugin.v1.DockerTunnelPlugin/Create"
+	DockerTunnelPlugin_Remove_FullMethodName       = "/plugin.v1.DockerTunnelPlugin/Remove"
+)
+
+// DockerTunnelPluginClient is the client API for DockerTunnelPlugin service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// DockerTunnelPlugin boots an environment that exposes a Docker daemon and
+// hands the runner the endpoint to drive it. The runner's built-in Docker
+// back-end then creates the job, service, and step containers against that
+// daemon, so a VM backend (Tart, QEMU, Firecracker, ...) reuses the whole
+// Docker driver instead of reimplementing exec/copy over its own transport.
+type DockerTunnelPluginClient interface {
+	// Capabilities returns the plugin's identity and protocol version. It carries
+	// none of the filesystem/feature fields of a BackendPlugin: the runner learns
+	// those from the Docker daemon the plugin exposes.
+	Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*TunnelCapabilitiesResponse, error)
+	// Create boots the environment and returns the Docker endpoint to drive.
+	Create(ctx context.Context, in *TunnelCreateRequest, opts ...grpc.CallOption) (*TunnelCreateResponse, error)
+	// Remove tears the environment down.
+	Remove(ctx context.Context, in *RemoveRequest, opts ...grpc.CallOption) (*RemoveResponse, error)
+}
+
+type dockerTunnelPluginClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDockerTunnelPluginClient(cc grpc.ClientConnInterface) DockerTunnelPluginClient {
+	return &dockerTunnelPluginClient{cc}
+}
+
+func (c *dockerTunnelPluginClient) Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*TunnelCapabilitiesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TunnelCapabilitiesResponse)
+	err := c.cc.Invoke(ctx, DockerTunnelPlugin_Capabilities_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dockerTunnelPluginClient) Create(ctx context.Context, in *TunnelCreateRequest, opts ...grpc.CallOption) (*TunnelCreateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TunnelCreateResponse)
+	err := c.cc.Invoke(ctx, DockerTunnelPlugin_Create_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dockerTunnelPluginClient) Remove(ctx context.Context, in *RemoveRequest, opts ...grpc.CallOption) (*RemoveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveResponse)
+	err := c.cc.Invoke(ctx, DockerTunnelPlugin_Remove_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DockerTunnelPluginServer is the server API for DockerTunnelPlugin service.
+// All implementations must embed UnimplementedDockerTunnelPluginServer
+// for forward compatibility.
+//
+// DockerTunnelPlugin boots an environment that exposes a Docker daemon and
+// hands the runner the endpoint to drive it. The runner's built-in Docker
+// back-end then creates the job, service, and step containers against that
+// daemon, so a VM backend (Tart, QEMU, Firecracker, ...) reuses the whole
+// Docker driver instead of reimplementing exec/copy over its own transport.
+type DockerTunnelPluginServer interface {
+	// Capabilities returns the plugin's identity and protocol version. It carries
+	// none of the filesystem/feature fields of a BackendPlugin: the runner learns
+	// those from the Docker daemon the plugin exposes.
+	Capabilities(context.Context, *CapabilitiesRequest) (*TunnelCapabilitiesResponse, error)
+	// Create boots the environment and returns the Docker endpoint to drive.
+	Create(context.Context, *TunnelCreateRequest) (*TunnelCreateResponse, error)
+	// Remove tears the environment down.
+	Remove(context.Context, *RemoveRequest) (*RemoveResponse, error)
+	mustEmbedUnimplementedDockerTunnelPluginServer()
+}
+
+// UnimplementedDockerTunnelPluginServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedDockerTunnelPluginServer struct{}
+
+func (UnimplementedDockerTunnelPluginServer) Capabilities(context.Context, *CapabilitiesRequest) (*TunnelCapabilitiesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Capabilities not implemented")
+}
+
+func (UnimplementedDockerTunnelPluginServer) Create(context.Context, *TunnelCreateRequest) (*TunnelCreateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Create not implemented")
+}
+
+func (UnimplementedDockerTunnelPluginServer) Remove(context.Context, *RemoveRequest) (*RemoveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Remove not implemented")
+}
+func (UnimplementedDockerTunnelPluginServer) mustEmbedUnimplementedDockerTunnelPluginServer() {}
+func (UnimplementedDockerTunnelPluginServer) testEmbeddedByValue()                            {}
+
+// UnsafeDockerTunnelPluginServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DockerTunnelPluginServer will
+// result in compilation errors.
+type UnsafeDockerTunnelPluginServer interface {
+	mustEmbedUnimplementedDockerTunnelPluginServer()
+}
+
+func RegisterDockerTunnelPluginServer(s grpc.ServiceRegistrar, srv DockerTunnelPluginServer) {
+	// If the following call panics, it indicates UnimplementedDockerTunnelPluginServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&DockerTunnelPlugin_ServiceDesc, srv)
+}
+
+func _DockerTunnelPlugin_Capabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CapabilitiesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DockerTunnelPluginServer).Capabilities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DockerTunnelPlugin_Capabilities_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DockerTunnelPluginServer).Capabilities(ctx, req.(*CapabilitiesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DockerTunnelPlugin_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TunnelCreateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DockerTunnelPluginServer).Create(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DockerTunnelPlugin_Create_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DockerTunnelPluginServer).Create(ctx, req.(*TunnelCreateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DockerTunnelPlugin_Remove_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DockerTunnelPluginServer).Remove(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DockerTunnelPlugin_Remove_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DockerTunnelPluginServer).Remove(ctx, req.(*RemoveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// DockerTunnelPlugin_ServiceDesc is the grpc.ServiceDesc for DockerTunnelPlugin service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var DockerTunnelPlugin_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "plugin.v1.DockerTunnelPlugin",
+	HandlerType: (*DockerTunnelPluginServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Capabilities",
+			Handler:    _DockerTunnelPlugin_Capabilities_Handler,
+		},
+		{
+			MethodName: "Create",
+			Handler:    _DockerTunnelPlugin_Create_Handler,
+		},
+		{
+			MethodName: "Remove",
+			Handler:    _DockerTunnelPlugin_Remove_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "plugin.proto",
 }

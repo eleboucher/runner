@@ -81,6 +81,7 @@ type Config struct {
 
 type PluginConfig struct {
 	Address string
+	Kind    string // "" or "backend" for a BackendPlugin; "docker-tunnel" for a DockerTunnelPlugin
 	Options map[string]string
 }
 

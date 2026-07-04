@@ -82,6 +82,7 @@ type Host struct {
 
 type Plugin struct {
 	Address string            // "unix:///path" or "host:port"
+	Kind    string            // "" or "backend" for a BackendPlugin; "docker-tunnel" for a DockerTunnelPlugin
 	Options map[string]string // passed to the plugin as backend_options
 }
 
@@ -429,6 +430,7 @@ func (s *serializedHostSettings) applyTo(config *Config) error {
 
 type serializedPluginSettings struct {
 	Address string            `yaml:"address"`
+	Kind    string            `yaml:"kind"`
 	Options map[string]string `yaml:"options"`
 }
 

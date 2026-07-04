@@ -53,7 +53,7 @@ func createEnv(t *testing.T, client pluginv1.BackendPluginClient) string {
 	resp, err := client.Create(t.Context(), &pluginv1.CreateRequest{
 		Image: "test:latest",
 		Name:  "test",
-		Env:   []string{"TEST_VAR=hello"},
+		Env:   map[string]string{"TEST_VAR": "hello"},
 	})
 	require.NoError(t, err)
 	_, err = client.Start(t.Context(), &pluginv1.StartRequest{EnvironmentId: resp.GetEnvironmentId()})

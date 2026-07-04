@@ -992,25 +992,25 @@ func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
 	return func(ctx context.Context) error {
 		logger := common.Logger(ctx)
 
-		var pluginClient *plugin.Client
-		var pluginOpts map[string]string
-		var err error
-		if v1Cfg, ok := rc.Config.Plugins[name]; ok {
-			logger.Infof("\U0001f50c Connecting to plugin %s at %s", name, v1Cfg.Address)
-			// Plaintext by default for the MVP. TODO: thread TLS material through
-			// PluginConfig and use plugin.WithTLS when configured.
-			pluginClient, err = plugin.NewClient(ctx, v1Cfg.Address, plugin.WithAllowPlainTCP())
-			pluginOpts = v1Cfg.Options
-		} else {
+		v1Cfg, ok := rc.Config.Plugins[name]
+		if !ok {
 			return fmt.Errorf("plugin %q not found in configuration", name)
 		}
+		logger.Infof("\U0001f50c Connecting to plugin %s at %s", name, v1Cfg.Address)
+
+		// A docker-tunnel plugin only boots an environment exposing a Docker
+		// daemon; the built-in docker back-end drives containers against it.
+		if v1Cfg.Kind == "docker-tunnel" {
+			return rc.runDelegatedDockerEnvironment(ctx, name, v1Cfg.Address, v1Cfg.Options)
+		}
+
+		// Plaintext by default for the MVP. TODO: thread TLS material through
+		// PluginConfig and use plugin.WithTLS when configured.
+		pluginClient, err := plugin.NewClient(ctx, v1Cfg.Address, plugin.WithAllowPlainTCP())
 		if err != nil {
 			return fmt.Errorf("plugin %s: %w", name, err)
 		}
-
-		if pluginClient.Capabilities().GetDelegatesToDocker() {
-			return rc.runDelegatedDockerEnvironment(ctx, pluginClient, pluginOpts)
-		}
+		pluginOpts := v1Cfg.Options
 
 		rawLogger := logger.WithField("raw_output", true)
 		logWriter := common.NewLineWriter(rc.commandHandler(ctx), func(s string) bool {
@@ -1100,18 +1100,20 @@ func (rc *RunContext) startPluginEnvironment(name string) common.Executor {
 // daemon the plug-in exposed. The plug-in only sees Create and Remove; the
 // runner owns every container call, so services, networks, the job container,
 // and step containers all land on that daemon.
-func (rc *RunContext) runDelegatedDockerEnvironment(ctx context.Context, client *plugin.Client, pluginOpts map[string]string) error {
+func (rc *RunContext) runDelegatedDockerEnvironment(ctx context.Context, name, address string, pluginOpts map[string]string) error {
+	// Plaintext by default for the MVP. TODO: thread TLS material through
+	// PluginConfig and use plugin.WithTLS when configured.
+	client, err := plugin.NewTunnelClient(ctx, address, plugin.WithAllowPlainTCP())
+	if err != nil {
+		return fmt.Errorf("plugin %s: %w", name, err)
+	}
+
 	containerName := rc.jobContainerName()
 	rc.Env["JOB_CONTAINER_NAME"] = containerName
 
 	opts := rc.pluginCreateOpts(ctx, pluginOpts)
 
-	del, err := client.CreateExecutionEnvironment(ctx, &container.NewContainerInput{
-		Image:           rc.containerImage(ctx),
-		Name:            containerName,
-		WorkingDir:      rc.Config.Workdir,
-		DefaultPlatform: rc.dockerImagePlatform(ctx),
-	}, opts, rc.Config.ForcePull)
+	del, err := client.CreateExecutionEnvironment(ctx, opts, rc.dockerImagePlatform(ctx), rc.Config.ForcePull)
 	if err != nil {
 		client.Close()
 		return err

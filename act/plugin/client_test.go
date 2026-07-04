@@ -6,7 +6,6 @@ import (
 	"net"
 	"testing"
 
-	"code.forgejo.org/forgejo/runner/v12/act/container"
 	pluginv1 "code.forgejo.org/forgejo/runner/v12/act/plugin/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,45 +100,42 @@ func TestNewClient_RejectsUnsupportedProtocolVersion(t *testing.T) {
 	assert.Contains(t, err.Error(), "unsupported plugin protocol version")
 }
 
-// delegateServer is a minimal reference for a delegating plugin: it declares
-// delegates_to_docker and returns a Docker endpoint + TLS material from Create.
-type delegateServer struct {
-	pluginv1.UnimplementedBackendPluginServer
-	caps       *pluginv1.CapabilitiesResponse
-	createResp *pluginv1.CreateResponse
-	createReq  *pluginv1.CreateRequest
+// tunnelServer is a minimal reference for a DockerTunnelPlugin: it returns a
+// Docker endpoint + TLS material from Create.
+type tunnelServer struct {
+	pluginv1.UnimplementedDockerTunnelPluginServer
+	caps       *pluginv1.TunnelCapabilitiesResponse
+	createResp *pluginv1.TunnelCreateResponse
+	createReq  *pluginv1.TunnelCreateRequest
 	removed    []string
 }
 
-func (d *delegateServer) Capabilities(context.Context, *pluginv1.CapabilitiesRequest) (*pluginv1.CapabilitiesResponse, error) {
+func (d *tunnelServer) Capabilities(context.Context, *pluginv1.CapabilitiesRequest) (*pluginv1.TunnelCapabilitiesResponse, error) {
 	return d.caps, nil
 }
 
-func (d *delegateServer) Create(_ context.Context, req *pluginv1.CreateRequest) (*pluginv1.CreateResponse, error) {
+func (d *tunnelServer) Create(_ context.Context, req *pluginv1.TunnelCreateRequest) (*pluginv1.TunnelCreateResponse, error) {
 	d.createReq = req
 	return d.createResp, nil
 }
 
-func (d *delegateServer) Remove(_ context.Context, req *pluginv1.RemoveRequest) (*pluginv1.RemoveResponse, error) {
+func (d *tunnelServer) Remove(_ context.Context, req *pluginv1.RemoveRequest) (*pluginv1.RemoveResponse, error) {
 	d.removed = append(d.removed, req.GetEnvironmentId())
 	return &pluginv1.RemoveResponse{}, nil
 }
 
-func delegateCaps() *pluginv1.CapabilitiesResponse {
-	return &pluginv1.CapabilitiesResponse{
-		ProtocolVersion:   ProtocolVersion,
-		Name:              "vm",
-		RootPath:          "/r",
-		ActPath:           "/r/act",
-		DelegatesToDocker: true,
+func tunnelCaps() *pluginv1.TunnelCapabilitiesResponse {
+	return &pluginv1.TunnelCapabilitiesResponse{
+		ProtocolVersion: ProtocolVersion,
+		Name:            "vm",
 	}
 }
 
-func TestClient_CreateExecutionEnvironment_Delegate(t *testing.T) {
+func TestTunnelClient_CreateExecutionEnvironment(t *testing.T) {
 	srv := grpc.NewServer()
-	server := &delegateServer{
-		caps: delegateCaps(),
-		createResp: &pluginv1.CreateResponse{
+	server := &tunnelServer{
+		caps: tunnelCaps(),
+		createResp: &pluginv1.TunnelCreateResponse{
 			EnvironmentId: "env-1",
 			Delegate: &pluginv1.DockerDelegate{
 				Endpoint: "tcp://10.0.0.2:2376",
@@ -149,16 +145,14 @@ func TestClient_CreateExecutionEnvironment_Delegate(t *testing.T) {
 			},
 		},
 	}
-	pluginv1.RegisterBackendPluginServer(srv, server)
+	pluginv1.RegisterDockerTunnelPluginServer(srv, server)
 	lis := startListener(t, srv, grpc_health_v1.HealthCheckResponse_SERVING)
 
-	c, err := NewClient(t.Context(), lis.Addr().String(), WithAllowPlainTCP())
+	c, err := NewTunnelClient(t.Context(), lis.Addr().String(), WithAllowPlainTCP())
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = c.Close() })
 
-	require.True(t, c.Capabilities().GetDelegatesToDocker())
-
-	del, err := c.CreateExecutionEnvironment(t.Context(), &container.NewContainerInput{Image: "x", Name: "n", DefaultPlatform: "linux/arm64"}, nil, false)
+	del, err := c.CreateExecutionEnvironment(t.Context(), nil, "linux/arm64", false)
 	require.NoError(t, err)
 	assert.Equal(t, "linux/arm64", server.createReq.GetPlatform())
 	assert.Equal(t, "env-1", del.EnvironmentID)
@@ -171,19 +165,19 @@ func TestClient_CreateExecutionEnvironment_Delegate(t *testing.T) {
 	assert.Equal(t, []string{"env-1"}, server.removed)
 }
 
-func TestClient_CreateExecutionEnvironment_RejectsMissingDelegate(t *testing.T) {
+func TestTunnelClient_CreateExecutionEnvironment_RejectsMissingDelegate(t *testing.T) {
 	srv := grpc.NewServer()
-	pluginv1.RegisterBackendPluginServer(srv, &delegateServer{
-		caps:       delegateCaps(),
-		createResp: &pluginv1.CreateResponse{EnvironmentId: "env-2"}, // no delegate block
+	pluginv1.RegisterDockerTunnelPluginServer(srv, &tunnelServer{
+		caps:       tunnelCaps(),
+		createResp: &pluginv1.TunnelCreateResponse{EnvironmentId: "env-2"}, // no delegate block
 	})
 	lis := startListener(t, srv, grpc_health_v1.HealthCheckResponse_SERVING)
 
-	c, err := NewClient(t.Context(), lis.Addr().String(), WithAllowPlainTCP())
+	c, err := NewTunnelClient(t.Context(), lis.Addr().String(), WithAllowPlainTCP())
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = c.Close() })
 
-	_, err = c.CreateExecutionEnvironment(t.Context(), &container.NewContainerInput{}, nil, false)
+	_, err = c.CreateExecutionEnvironment(t.Context(), nil, "", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no delegate block")
 }

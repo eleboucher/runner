@@ -74,26 +74,35 @@ type Client struct {
 	caps *pluginv1.CapabilitiesResponse
 }
 
-func NewClient(ctx context.Context, address string, options ...ClientOption) (*Client, error) {
-	cfg := clientOptions{
+func resolveOptions(options []ClientOption) *clientOptions {
+	cfg := &clientOptions{
 		dialTimeout:      defaultDialTimeout,
 		maxMessageSize:   defaultMaxMessageSize,
 		keepaliveTime:    defaultKeepaliveTime,
 		keepaliveTimeout: defaultKeepaliveTimeout,
 	}
 	for _, opt := range options {
-		opt(&cfg)
+		opt(cfg)
 	}
+	return cfg
+}
 
-	if _, ok := ctx.Deadline(); !ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, cfg.dialTimeout)
-		defer cancel()
+// withDialTimeout applies cfg.dialTimeout when the caller's context has none, so
+// a non-blocking grpc.NewClient still fails fast on the first RPC.
+func withDialTimeout(ctx context.Context, cfg *clientOptions) (context.Context, context.CancelFunc) {
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
 	}
+	return context.WithTimeout(ctx, cfg.dialTimeout)
+}
 
+// dial opens a connection to a plugin and confirms its health service is
+// SERVING. It is shared by the backend and Docker-tunnel clients; the caller
+// picks the gRPC service to talk over the returned connection.
+func dial(ctx context.Context, address string, cfg *clientOptions) (*grpc.ClientConn, error) {
 	isUnix := strings.HasPrefix(address, "unix://")
 
-	creds, err := transportCredentials(isUnix, &cfg)
+	creds, err := transportCredentials(isUnix, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +132,6 @@ func NewClient(ctx context.Context, address string, options ...ClientOption) (*C
 		return nil, fmt.Errorf("dial plugin at %s: %w", address, err)
 	}
 
-	rpc := pluginv1.NewBackendPluginClient(conn)
-
 	healthClient := grpc_health_v1.NewHealthClient(conn)
 	healthResp, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
 	if err != nil {
@@ -136,6 +143,22 @@ func NewClient(ctx context.Context, address string, options ...ClientOption) (*C
 		return nil, fmt.Errorf("health check plugin at %s: status %s", address, got)
 	}
 
+	return conn, nil
+}
+
+// NewClient connects to a BackendPlugin: a plugin that owns the whole execution
+// environment and every container operation within it.
+func NewClient(ctx context.Context, address string, options ...ClientOption) (*Client, error) {
+	cfg := resolveOptions(options)
+	ctx, cancel := withDialTimeout(ctx, cfg)
+	defer cancel()
+
+	conn, err := dial(ctx, address, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	rpc := pluginv1.NewBackendPluginClient(conn)
 	caps, err := rpc.Capabilities(ctx, &pluginv1.CapabilitiesRequest{})
 	if err != nil {
 		conn.Close()
@@ -202,7 +225,57 @@ func (c *Client) NewEnvironment(input *container.NewContainerInput, backendOpts 
 	}
 }
 
-// DelegateEnvironment describes a Docker daemon a delegating plug-in has
+func (c *Client) Close() error {
+	return c.conn.Close()
+}
+
+// TunnelClient talks to a DockerTunnelPlugin: a plugin that boots an
+// environment exposing a Docker daemon and hands the runner the endpoint to
+// drive containers against.
+type TunnelClient struct {
+	conn *grpc.ClientConn
+	rpc  pluginv1.DockerTunnelPluginClient
+}
+
+// NewTunnelClient connects to a DockerTunnelPlugin.
+func NewTunnelClient(ctx context.Context, address string, options ...ClientOption) (*TunnelClient, error) {
+	cfg := resolveOptions(options)
+	ctx, cancel := withDialTimeout(ctx, cfg)
+	defer cancel()
+
+	conn, err := dial(ctx, address, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	rpc := pluginv1.NewDockerTunnelPluginClient(conn)
+	caps, err := rpc.Capabilities(ctx, &pluginv1.CapabilitiesRequest{})
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("get capabilities from plugin at %s: %w", address, err)
+	}
+	if err := validateTunnelCapabilities(caps); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("plugin at %s: %w", address, err)
+	}
+
+	return &TunnelClient{
+		conn: conn,
+		rpc:  rpc,
+	}, nil
+}
+
+func validateTunnelCapabilities(caps *pluginv1.TunnelCapabilitiesResponse) error {
+	if v := caps.GetProtocolVersion(); v != ProtocolVersion {
+		return fmt.Errorf("unsupported plugin protocol version %d (runner speaks %d)", v, ProtocolVersion)
+	}
+	if caps.GetName() == "" {
+		return fmt.Errorf("capabilities response missing required fields: name")
+	}
+	return nil
+}
+
+// DelegateEnvironment describes a Docker daemon a tunnel plug-in has
 // provisioned (e.g. one running inside a VM it booted). The runner dials
 // Endpoint and drives every container against it; EnvironmentID is the handle
 // passed back to RemoveExecutionEnvironment to tear the daemon down.
@@ -215,18 +288,24 @@ type DelegateEnvironment struct {
 	TLSInsecureSkipVerify bool
 }
 
-// CreateExecutionEnvironment asks a delegating plug-in to provision its
-// environment and return the Docker endpoint to drive containers against. It
-// is only valid when Capabilities reports delegates_to_docker.
-func (c *Client) CreateExecutionEnvironment(ctx context.Context, input *container.NewContainerInput, backendOpts map[string]string, forcePull bool) (*DelegateEnvironment, error) {
-	resp, err := c.rpc.Create(ctx, newCreateRequest(input, backendOpts, forcePull))
+// CreateExecutionEnvironment asks a tunnel plug-in to provision its environment
+// and return the Docker endpoint to drive containers against.
+func (c *TunnelClient) CreateExecutionEnvironment(ctx context.Context, backendOpts map[string]string, platform string, forcePull bool) (*DelegateEnvironment, error) {
+	req := &pluginv1.TunnelCreateRequest{
+		BackendOptions: backendOpts,
+		ForcePull:      forcePull,
+	}
+	if platform != "" {
+		req.Platform = &platform
+	}
+	resp, err := c.rpc.Create(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("plugin create: %w", err)
 	}
 	del := resp.GetDelegate()
 	if del == nil {
 		_, _ = c.rpc.Remove(ctx, &pluginv1.RemoveRequest{EnvironmentId: resp.GetEnvironmentId()})
-		return nil, fmt.Errorf("plugin declared delegates_to_docker but returned no delegate block")
+		return nil, fmt.Errorf("plugin returned no delegate block")
 	}
 	if del.GetEndpoint() == "" {
 		_, _ = c.rpc.Remove(ctx, &pluginv1.RemoveRequest{EnvironmentId: resp.GetEnvironmentId()})
@@ -244,11 +323,11 @@ func (c *Client) CreateExecutionEnvironment(ctx context.Context, input *containe
 
 // RemoveExecutionEnvironment tears down an environment provisioned by
 // CreateExecutionEnvironment.
-func (c *Client) RemoveExecutionEnvironment(ctx context.Context, environmentID string) error {
+func (c *TunnelClient) RemoveExecutionEnvironment(ctx context.Context, environmentID string) error {
 	_, err := c.rpc.Remove(ctx, &pluginv1.RemoveRequest{EnvironmentId: environmentID})
 	return err
 }
 
-func (c *Client) Close() error {
+func (c *TunnelClient) Close() error {
 	return c.conn.Close()
 }
